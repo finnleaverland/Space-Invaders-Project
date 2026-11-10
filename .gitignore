@@ -14,3 +14,6 @@ __pycache__/
 
 # Tooling
 .pytest_cache/
+
+# Tinker folder that I use to test out my Space Invaders code - not part of the final project
+Space-Invaders-Tinker/
