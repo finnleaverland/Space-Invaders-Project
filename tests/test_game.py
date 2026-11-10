@@ -223,13 +223,19 @@ def test_wave_speed_ups_are_capped(game):
 
 
 def test_new_waves_start_at_the_top(game):
+    def row_centres():
+        # centres, not top edges: each alien picks a random picture, and they differ in height
+        return sorted({alien.rect.centery for alien in game.alien_group})
+
     start(game)
-    first_wave = alien_positions(game)
+    first_wave = row_centres()
+    assert first_wave == [game_module.ALIEN_GRID_TOP + row * game_module.ALIEN_SPACING_Y
+                          for row in range(game_module.ALIEN_ROWS)]
     run_frames(game, 400)  # long enough to step down a few times
-    assert max(y for _, y in alien_positions(game)) > max(y for _, y in first_wave)
+    assert min(row_centres()) > min(first_wave)
     game.alien_group.empty()
     game.step(NO_KEYS)
-    assert min(y for _, y in alien_positions(game)) == min(y for _, y in first_wave)
+    assert row_centres() == first_wave
 
 
 # --- Explosions and invincibility --------------------------------------------------------
