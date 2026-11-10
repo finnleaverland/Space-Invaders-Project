@@ -5,7 +5,8 @@ from . import game, theme
 from .accounts import ClientList
 from .widgets import Screen
 
-LEADERBOARD_SIZE = 5  # how many players the leaderboard shows
+LEADERBOARD_SIZE = 10  # top players shown (plus your own row if you're further down)
+NOT_RANKED = "-"
 
 _POINT_REWARDS = [reward for reward in game.MYSTERY_REWARDS if reward != game.EXTRA_LIFE]
 HOW_TO_PLAY = (
@@ -27,27 +28,47 @@ class MenuScreen(Screen):
     def build(self):
         client = self.app.client
         self.add_title("SPACE INVADERS")
-        ttk.Label(self.body, text=f"Welcome, {client.username}!", style="Heading.TLabel").pack(
-            pady=(0, theme.px(theme.GAP)))
+        ttk.Label(self.body, text=f"Welcome, {client.username}!", style="Heading.TLabel").pack()
+        self.high_score_label = ttk.Label(self.body, text=f"Your high score: {client.highest_score}",
+                                          style="Muted.TLabel")
+        self.high_score_label.pack(pady=(theme.px(2), theme.px(theme.GAP)))
         self.add_button("Play", self.app.play_game, primary=True)
         self.add_button("Leaderboard", lambda: self.app.show("leaderboard"))
         self.add_button("How to play", lambda: self.app.show("how_to_play"))
         self.add_button("Delete account", lambda: self.app.show("delete_account"))
         self.add_message_line()
+        self.add_back_button(self.app.log_out, text="Log out")
+        self.back_command = None  # Escape shouldn't log the player out
 
 
 class LeaderboardScreen(Screen):
-    """The top players and their best scores."""
+    """The top players in a table, with the logged-in player's row highlighted."""
+
+    COLUMNS = (("rank", "Rank", 60, "center"), ("player", "Player", 220, "w"),
+               ("score", "High score", 120, "e"))
 
     def build(self):
         self.add_title("Leaderboard")
-        table = ttk.Frame(self.body)
-        table.pack(pady=theme.px(theme.GAP))
-        gap = theme.px(6)
-        for row, player in enumerate(ClientList().top_players(LEADERBOARD_SIZE)):
-            ttk.Label(table, text=f"{row + 1}.", style="Muted.TLabel").grid(row=row, column=0, padx=gap)
-            ttk.Label(table, text=player.username).grid(row=row, column=1, sticky="w", padx=gap)
-            ttk.Label(table, text=str(player.highest_score)).grid(row=row, column=2, sticky="e", padx=gap)
+        you = self.app.client.username
+        rows = ClientList().leaderboard(LEADERBOARD_SIZE, username=you)
+
+        self.table = ttk.Treeview(self.body, columns=[c[0] for c in self.COLUMNS], show="headings",
+                                  height=max(len(rows) + 1, 1), selectmode="none", takefocus=False)
+        for column, heading, width, anchor in self.COLUMNS:
+            self.table.heading(column, text=heading, anchor=anchor)
+            self.table.column(column, width=theme.px(width), anchor=anchor, stretch=column == "player")
+        self.table.tag_configure("you", background=theme.HIGHLIGHT, foreground=theme.TEXT)
+        self.table.tag_configure("gap", foreground=theme.MUTED)
+
+        for position, (rank, player) in enumerate(rows):
+            if position == LEADERBOARD_SIZE:  # the player's own row, further down the table
+                self.table.insert("", "end", values=("…", "", ""), tags=("gap",))
+            tags = ("you",) if player.username == you else ()
+            label = f"{player.username} (you)" if player.username == you else player.username
+            self.table.insert("", "end", values=(rank, label, player.highest_score), tags=tags)
+        if not rows:
+            self.table.insert("", "end", values=(NOT_RANKED, "No scores yet", ""))
+        self.table.pack(fill="x", pady=(theme.px(theme.GAP), 0))
         self.add_back_button(lambda: self.app.show("menu"))
 
 

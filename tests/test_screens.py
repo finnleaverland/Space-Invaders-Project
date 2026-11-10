@@ -366,3 +366,53 @@ def test_delete_account(app):
     assert screen_name(app) == "WelcomeScreen"
     assert "deleted" in message(app)
     assert not ClientList().find(Client("alice"))[0]
+
+
+# --- Leaderboard and menu ---------------------------------------------------------------
+
+def table_rows(app):
+    table = app.screen.table
+    return [(table.item(row, "values"), table.item(row, "tags")) for row in table.get_children()]
+
+
+def test_menu_shows_the_players_high_score(app):
+    log_in(app)
+    assert app.screen.high_score_label.cget("text") == "Your high score: 50"
+
+
+def test_high_score_on_the_menu_updates_after_a_game(app, monkeypatch):
+    monkeypatch.setattr(game, "main", lambda *args, **kwargs: 75)
+    log_in(app)
+    click(app, "Play")
+    assert app.screen.high_score_label.cget("text") == "Your high score: 75"
+
+
+def test_log_out_returns_to_the_welcome_screen(app):
+    log_in(app)
+    click(app, "Log out")
+    assert screen_name(app) == "WelcomeScreen"
+    assert app.client is None
+
+
+def test_leaderboard_table_highlights_the_logged_in_player(app):
+    log_in(app)
+    click(app, "Leaderboard")
+    rows = table_rows(app)
+    assert [values for values, _ in rows] == [
+        ("1", "alice (you)", "50"), ("2", "carol", "0"), ("2", "dan", "0")]
+    assert rows[0][1] == ("you",)
+    assert rows[1][1] == ""
+
+
+def test_leaderboard_adds_your_row_when_you_are_outside_the_top_ten(app):
+    clients = ClientList()
+    for i in range(12):
+        player = Client.new(f"p{i:02}", "password1", "Q?", "a")
+        player.highest_score = 100 + i
+        clients.add_client(player)
+    log_in(app, username="dan", password="abc")
+    click(app, "Leaderboard")
+    rows = table_rows(app)
+    assert len(rows) == 12  # top ten, a gap row, then you
+    assert rows[10][0][0] == "…"
+    assert rows[11] == (("14", "dan (you)", "0"), ("you",))

@@ -266,3 +266,22 @@ def test_new_score_only_replaces_highest_score_when_better(accounts_file):
 def test_updating_unknown_player_does_nothing(accounts_file):
     clients = make_list(accounts_file, "alice")
     assert not clients.update_player_in_list(Client("nobody", score=999))
+
+
+def test_ranks_are_shared_by_equal_scores(accounts_file):
+    scores_file(accounts_file, ("amy", 100), ("bob", 300), ("cat", 300), ("dan", 50))
+    ranked = [(rank, player.username) for rank, player in ClientList(str(accounts_file)).ranked()]
+    assert ranked == [(1, "bob"), (1, "cat"), (3, "amy"), (4, "dan")]
+
+
+def test_leaderboard_adds_the_players_own_row_when_outside_the_top(accounts_file):
+    scores_file(accounts_file, *((f"p{i}", i * 10) for i in range(12)))
+    board = ClientList(str(accounts_file)).leaderboard(size=10, username="p0")
+    assert [player.username for _, player in board] == [f"p{i}" for i in range(11, 1, -1)] + ["p0"]
+    assert board[-1][0] == 12
+
+
+def test_leaderboard_does_not_repeat_a_player_already_in_the_top(accounts_file):
+    scores_file(accounts_file, ("amy", 100), ("bob", 300))
+    board = ClientList(str(accounts_file)).leaderboard(size=10, username="bob")
+    assert [player.username for _, player in board] == ["bob", "amy"]

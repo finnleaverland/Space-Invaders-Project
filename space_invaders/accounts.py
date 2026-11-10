@@ -243,6 +243,25 @@ class ClientList:
         """Return up to `amount` players with the best highest scores."""
         return self.sorted_by_score()[:amount]
 
+    def ranked(self):
+        """Return (rank, player) pairs, best first. Players with the same score share a rank."""
+        rows = []
+        for position, player in enumerate(self.sorted_by_score()):
+            if rows and player.highest_score == rows[-1][1].highest_score:
+                rank = rows[-1][0]
+            else:
+                rank = position + 1
+            rows.append((rank, player))
+        return rows
+
+    def leaderboard(self, size=10, username=None):
+        """The top `size` (rank, player) rows, plus the named player's row if they aren't in it."""
+        rows = self.ranked()
+        top = rows[:size]
+        if username is not None and all(player.username != username for _, player in top):
+            top += [row for row in rows[size:] if row[1].username == username]
+        return top
+
     def update_player_in_list(self, player):
         """Save a player's latest score, and their highest score if they beat it.
 

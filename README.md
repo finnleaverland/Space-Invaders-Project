@@ -21,7 +21,8 @@ leaderboard.
   the keyboard (Return, Escape, Tab), and stays sharp with Windows display scaling
 - **Secure password storage:** passwords and security answers are stored as salted
   PBKDF2-HMAC-SHA256 hashes (`hashlib`), never as plain text
-- **Leaderboard:** shows the top five players by highest score
+- **Leaderboard:** a table of the top ten players by high score, with equal scores sharing a
+  rank and your own row highlighted (and added at the bottom if you're outside the top ten)
 - **Algorithms written by hand:** insertion sort keeps accounts in username order, a
   recursive binary search finds accounts, and a bubble sort ranks the leaderboard
 - **Tests:** a pytest suite covering the account system
