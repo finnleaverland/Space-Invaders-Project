@@ -116,7 +116,8 @@ def apply_theme(root):
               bordercolor=[("focus", ACCENT)])
 
     style.configure("TCheckbutton", background=BACKGROUND, foreground=MUTED,
-                    indicatorbackground=SURFACE, indicatorforeground=ACCENT)
+                    indicatorbackground=SURFACE, indicatorforeground=ACCENT,
+                    indicatorsize=px(14), indicatormargin=(0, 0, px(6), 0))
     style.map("TCheckbutton", background=[("active", BACKGROUND)], foreground=[("active", TEXT)])
 
     style.configure("Horizontal.TScale", background=ACCENT, troughcolor=SURFACE)

@@ -28,6 +28,10 @@ class App:
         self.root = root or theme.new_root(WINDOW_TITLE, WINDOW_WIDTH, WINDOW_HEIGHT)
         self.client = None  # the logged-in player
         self.screen = None
+        # Keys are bound once to the window and passed on to whichever screen is showing
+        for key in ("<Return>", "<KP_Enter>"):
+            self.root.bind(key, lambda event: self.screen.handle_return(event))
+        self.root.bind("<Escape>", lambda event: self.screen.handle_escape(event))
         self.show("welcome")
 
     def run(self):

@@ -4,6 +4,7 @@ They need a display, so they are skipped automatically where tkinter can't open 
 """
 import tkinter as tk
 from tkinter import ttk
+from types import SimpleNamespace
 
 import pytest
 
@@ -14,12 +15,26 @@ from space_invaders.accounts import Client, ClientList
 
 @pytest.fixture(scope="session")
 def root():
-    """One hidden main window shared by every test (Tk is slow and flaky to recreate)."""
+    """One main window shared by every test (Tk is slow and flaky to recreate).
+
+    It stays mapped, so keyboard focus and Tab order work as they do for a player,
+    but it is fully transparent and off-screen so nothing flashes up.
+    """
     try:
         window = theme.new_root("test", app_module.WINDOW_WIDTH, app_module.WINDOW_HEIGHT)
     except tk.TclError as error:
         pytest.skip(f"tkinter can't open a window here: {error}")
-    window.withdraw()
+    window.attributes("-alpha", 0.0)
+    window.geometry("+-4000+-4000")
+    window.update()
+    # Tk loads its keyboard-traversal commands from library files the first time they're
+    # used. On some Windows machines that read occasionally fails, so load them up front.
+    for _attempt in range(3):
+        try:
+            window.tk.call("auto_load", "tk_focusNext")
+            break
+        except tk.TclError:
+            pass
     yield window
     window.destroy()
 
@@ -100,6 +115,96 @@ def test_everything_happens_in_one_window(app):
     click(app, "← Back")
     click(app, "Register")
     assert not [w for w in app.root.winfo_children() if isinstance(w, tk.Toplevel)]
+
+
+# --- Keyboard and usability ----------------------------------------------------------
+
+def press(app, widget, key, char=""):
+    """Send a key press on a widget to the same handlers the window's key bindings call.
+
+    Real key events only arrive while the window has keyboard focus, which Windows won't
+    give a background test window, so the bindings themselves are checked separately.
+    """
+    event = SimpleNamespace(widget=widget, keysym=key, char=char)
+    if key == "Return":
+        app.screen.handle_return(event)
+    elif key == "Escape":
+        app.screen.handle_escape(event)
+    else:
+        app.screen.on_typing(event)
+    app.root.update()
+
+
+def test_keys_are_bound_to_the_screen_handlers(app):
+    bound = app.root.bind()
+    assert {"<Key-Return>", "<Key-KP_Enter>", "<Key-Escape>"} <= set(bound)
+    click(app, "Register")
+    for entry in app.screen.fields:
+        assert "<Key>" in entry.bind()
+
+
+def test_cursor_starts_in_the_first_box(app):
+    click(app, "Log in")
+    assert app.root.focus_lastfor() == app.screen.username_entry
+
+
+def test_tab_goes_from_box_to_box_then_to_the_button(app):
+    click(app, "Log in")
+    screen = app.screen
+    assert screen.username_entry.tk_focusNext() == screen.password_entry
+    next_widget = screen.password_entry.tk_focusNext()
+    assert isinstance(next_widget, ttk.Button) and next_widget.cget("text") == "Log in"
+
+
+def test_return_submits_the_form(app):
+    click(app, "Log in")
+    type_into(app.screen.username_entry, "alice")
+    type_into(app.screen.password_entry, "alice-pass")
+    press(app, app.screen.password_entry, "Return")
+    assert screen_name(app) == "MenuScreen"
+
+
+def test_return_presses_the_focused_button(app):
+    register_button = [b for b in app.screen.buttons if b.cget("text") == "Register"][0]
+    press(app, register_button, "Return")
+    assert screen_name(app) == "RegisterScreen"
+
+
+def test_escape_goes_back(app):
+    click(app, "Register")
+    press(app, app.screen.username_entry, "Escape")
+    assert screen_name(app) == "WelcomeScreen"
+
+
+def test_escape_does_not_quit_from_the_welcome_screen(app):
+    press(app, app.screen.buttons[0], "Escape")
+    assert screen_name(app) == "WelcomeScreen"
+
+
+def test_show_password_toggle(app):
+    click(app, "Log in")
+    toggle = widgets(app.screen, ttk.Checkbutton)[0]
+    assert app.screen.password_entry.cget("show") != ""
+    toggle.invoke()
+    assert app.screen.password_entry.cget("show") == ""
+    toggle.invoke()
+    assert app.screen.password_entry.cget("show") != ""
+
+
+def test_error_clears_when_the_player_edits_a_box(app):
+    log_in(app, password="wrong")
+    assert message(app) == "Incorrect password"
+    press(app, app.screen.username_entry, "Tab")  # moving between boxes keeps the message
+    assert message(app) == "Incorrect password"
+    press(app, app.screen.username_entry, "BackSpace")
+    assert message(app) == ""
+
+
+def test_typing_a_letter_clears_the_error(app):
+    log_in(app, username="nobody")
+    assert message(app) == "Incorrect username"
+    press(app, app.screen.username_entry, "a", char="a")
+    assert message(app) == ""
 
 
 # --- Logging in -------------------------------------------------------------------

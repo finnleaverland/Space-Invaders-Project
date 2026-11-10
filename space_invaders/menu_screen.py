@@ -71,16 +71,18 @@ class DeleteAccountScreen(Screen):
                   style="Muted.TLabel", wraplength=theme.px(theme.TEXT_WIDTH),
                   justify="center").pack(pady=(0, theme.px(theme.GAP)))
         self.password_entry = self.add_field("Enter your password to confirm", hidden=True)
+        self.add_password_toggle()
         self.add_button("Delete my account", self.submit, primary=True)
         self.add_message_line()
         self.add_back_button(lambda: self.app.show("menu"))
+        self.submit_command = self.submit
 
     def submit(self):
         clients = ClientList()
         found, index = clients.find(self.app.client)
         if not found or not clients.clients[index].check_password(self.password_entry.get()):
-            self.show_error("Wrong password")
             self.password_entry.delete(0, "end")
+            self.show_error("Wrong password")
             return
         clients.delete_client(clients.clients[index])
         self.app.log_out(message="Your account has been deleted.")

@@ -29,6 +29,7 @@ class WelcomeScreen(Screen):
         self.add_button("Reset password", lambda: self.app.show("reset_password"))
         self.add_message_line()
         self.add_back_button(self.app.quit, text="Quit")
+        self.back_command = None  # Escape shouldn't close the game
 
 
 class LoginScreen(Screen):
@@ -38,17 +39,21 @@ class LoginScreen(Screen):
         self.add_title("Log in")
         self.username_entry = self.add_field("Username")
         self.password_entry = self.add_field("Password", hidden=True)
+        self.add_password_toggle()
         self.add_button("Log in", self.submit, primary=True)
         self.add_message_line()
         self.add_back_button(lambda: self.app.show("welcome"))
+        self.submit_command = self.submit
 
     def submit(self):
         clients, client = find_client(self.username_entry.get().strip())
         if client is None:
             self.show_error("Incorrect username")
+            self.username_entry.focus_set()
         elif not client.check_password(self.password_entry.get()):
-            self.show_error("Incorrect password")
             self.password_entry.delete(0, "end")
+            self.password_entry.focus_set()
+            self.show_error("Incorrect password")
         else:
             self.app.log_in(client)
 
@@ -60,11 +65,13 @@ class RegisterScreen(Screen):
         self.add_title("Create account")
         self.username_entry = self.add_field(f"Username (up to {MAX_USERNAME_LENGTH} characters)")
         self.password_entry = self.add_field("Password", hidden=True)
+        self.add_password_toggle()
         self.question_entry = self.add_field("Security question")
         self.answer_entry = self.add_field("Security answer")
         self.add_button("Create account", self.submit, primary=True)
         self.add_message_line()
         self.add_back_button(lambda: self.app.show("welcome"))
+        self.submit_command = self.submit
 
     def submit(self):
         username = self.username_entry.get().strip()
@@ -106,18 +113,15 @@ class ResetPasswordScreen(Screen):
         self.step_two = ttk.Frame(self.body)
         self.question_label = ttk.Label(self.step_two, text="", wraplength=theme.px(theme.TEXT_WIDTH),
                                         justify="center")
-        self.question_label.pack(pady=(theme.px(theme.GAP), theme.px(theme.FIELD_GAP)))
-        ttk.Label(self.step_two, text="Answer", style="Muted.TLabel").pack(fill="x")
-        self.answer_entry = ttk.Entry(self.step_two)
-        self.answer_entry.pack(fill="x", pady=theme.px(theme.FIELD_GAP))
-        ttk.Label(self.step_two, text="New password", style="Muted.TLabel").pack(fill="x")
-        self.password_entry = ttk.Entry(self.step_two, show="•")
-        self.password_entry.pack(fill="x", pady=theme.px(theme.FIELD_GAP))
-        ttk.Button(self.step_two, text="Save new password", command=self.submit,
-                   style="Accent.TButton").pack(fill="x", pady=(theme.px(theme.GAP // 2), 0))
+        self.question_label.pack(pady=(theme.px(theme.GAP), 0))
+        self.answer_entry = self.add_field("Answer", parent=self.step_two)
+        self.password_entry = self.add_field("New password", hidden=True, parent=self.step_two)
+        self.add_password_toggle(parent=self.step_two)
+        self.add_button("Save new password", self.submit, primary=True, parent=self.step_two)
 
         self.add_message_line()
         self.add_back_button(lambda: self.app.show("welcome"))
+        self.submit_command = self.find_account
 
     def find_account(self):
         self.clients, self.client = find_client(self.username_entry.get().strip())
@@ -129,13 +133,17 @@ class ResetPasswordScreen(Screen):
         self.next_button.pack_forget()
         self.question_label.configure(text=self.client.question)
         self.step_two.pack(fill="x", after=self.username_entry)
+        self.answer_entry.focus_set()
+        self.submit_command = self.submit
 
     def submit(self):
         new_password = self.password_entry.get()
         if not self.client.check_answer(self.answer_entry.get()):
             self.show_error("Wrong answer, try again")
+            self.answer_entry.focus_set()
         elif len(new_password) == 0 or "," in new_password:
             self.show_error("Enter a password (no commas)")
+            self.password_entry.focus_set()
         else:
             self.client.set_password(new_password)
             self.clients.save_list()
