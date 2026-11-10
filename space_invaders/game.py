@@ -2,38 +2,33 @@ import os
 import random
 
 import pygame
-
-from pygame.locals import (
-    K_LEFT,
-    K_RIGHT,
-    K_SPACE,
-    K_ESCAPE,
-    KEYDOWN,
-    QUIT,
-)
+from pygame.locals import K_ESCAPE, K_LEFT, K_RIGHT, K_SPACE, KEYDOWN, QUIT
 
 #Asset folders, so the images and sounds load whatever folder you run from
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMAGE_DIR = os.path.join(PROJECT_ROOT, "assets", "images")
 SOUND_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
 
+
 def image_path(filename):
     """full path to an image file"""
     return os.path.join(IMAGE_DIR, filename)
+
 
 def sound_path(filename):
     """full path to a sound file"""
     return os.path.join(SOUND_DIR, filename)
 
+
 #Define constants for the screen width and height
-screen_width = 600
-screen_height = 800
+SCREEN_WIDTH = 600
+SCREEN_HEIGHT = 800
 
 #define the fps:
-fps = 60
+FPS = 60
 
-green = (0,255,0)
-red = (255,0,0)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
 
 #These are set up in setup_game() when a game starts, not when the file is imported,
 #so the game window only opens once the player presses Play
@@ -41,7 +36,7 @@ screen = None
 clock = None
 background = None
 font = None
-font2 = None
+big_font = None
 explosion1_sound = None
 explosion2_sound = None
 laser_sound = None
@@ -49,21 +44,21 @@ player = None
 
 
 def draw_background():
-    screen.blit(background, (0,0))
+    screen.blit(background, (0, 0))
 
 
-def draw_text(screen, text, font, text_colour, x, y):
-    image = font.render(text, True, text_colour)
-    screen.blit(image, (x,y))
+def draw_text(surface, text, text_font, text_colour, x, y):
+    text_image = text_font.render(text, True, text_colour)
+    surface.blit(text_image, (x, y))
 
 
 ####Player Class####
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        super(Player, self).__init__()
+        super().__init__()
         self.image = pygame.image.load(image_path("spaceship.png")).convert_alpha()
         self.rect = self.image.get_rect()
-        self.rect.center = [x,y]
+        self.rect.center = [x, y]
         self.count = 0
         self.cooldown = 30
         self.score = 0
@@ -83,21 +78,17 @@ class Player(pygame.sprite.Sprite):
         if pressed_keys[K_RIGHT]:
             self.rect.move_ip(4, 0)
 
-    #Does the player want too shoot?
+        #Does the player want too shoot?
         if pressed_keys[K_SPACE] and self.count % self.cooldown == 0:
             laser_sound.play()
-            bullet = Bullet(self.rect.centerx +10, self.rect.top)
+            bullet = Bullet(self.rect.centerx + 10, self.rect.top)
             bullet_group.add(bullet)
 
-    #Keep player on the screen
+        #Keep player on the screen
         if self.rect.left < 0:
             self.rect.left = 0
-        if self.rect.right > screen_width:
-            self.rect.right = screen_width
-        if self.rect.top <= 0:
-            self.rect.top = 0
-        if self.rect.bottom >= screen_height:
-            self.rect.bottom = screen_height
+        if self.rect.right > SCREEN_WIDTH:
+            self.rect.right = SCREEN_WIDTH
 
     def hit(self):
         """called when an alien bullet hits the player"""
@@ -108,22 +99,21 @@ class Player(pygame.sprite.Sprite):
         if self.lives <= 0:
             self.lives = 0
             explosion2_sound.play()
-            explosion2 = Player_explosion(self.rect.centerx, self.rect.centery)
-            player_explosion_group.add(explosion2)
+            player_explosion_group.add(PlayerExplosion(self.rect.centerx, self.rect.centery))
             self.kill()
 
 
 ####Player bullets Class####
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        super(Bullet, self).__init__()
+        super().__init__()
         self.image = pygame.image.load(image_path("bullet.png")).convert_alpha()
         self.rect = self.image.get_rect()
-        self.rect.center = [x,y]
+        self.rect.center = [x, y]
 
     def update(self):
         """move the bullet up the screen by 4 pixels every loop"""
-        self.rect.y -=4
+        self.rect.y -= 4
         #has the bullet left the screen if so delete the bullet
         if self.rect.bottom < 0:
             self.kill()
@@ -132,23 +122,23 @@ class Bullet(pygame.sprite.Sprite):
             player.score += 10
             self.kill()
             explosion1_sound.play()
-            explosion = Alien_explosion(self.rect.centerx, self.rect.centery)
-            alien_explosion_group.add(explosion)
+            alien_explosion_group.add(AlienExplosion(self.rect.centerx, self.rect.centery))
 
 
 ####Aliens Class####
 #Alien variables
-rows = 5
-colums = 5
-alien_cooldown = 1000 #1 second
+ROWS = 5
+COLUMNS = 5
+ALIEN_COOLDOWN = 1000  #1 second
 
-class Aliens(pygame.sprite.Sprite):
+
+class Alien(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        super(Aliens, self).__init__()
-        self.image = pygame.image.load(image_path("alien" + str(random.randint(1, 4)) + ".png")).convert_alpha()
+        super().__init__()
+        self.image = pygame.image.load(image_path(f"alien{random.randint(1, 4)}.png")).convert_alpha()
         self.rect = self.image.get_rect()
-        self.rect.center = [x,y]
-        self.move_counter = 0 #how far the alien is from where it started
+        self.rect.center = [x, y]
+        self.move_counter = 0  #how far the alien is from where it started
         self.move_direction = 1
 
     def update(self):
@@ -157,30 +147,29 @@ class Aliens(pygame.sprite.Sprite):
         self.rect.x += self.move_direction
         self.move_counter += self.move_direction
         if abs(self.move_counter) >= 70:
-            self.move_direction *= -1    #change direction
+            self.move_direction *= -1  #change direction
+
 
 def create_aliens():
     """creates the rows of aliens"""
-    for row in range(rows):
-        for item in range(colums):
-            #creates an instance for the Aliens class
-            alien = Aliens(100 + item * 100, 150 + row * 70)
-            alien_group.add(alien)
+    for row in range(ROWS):
+        for column in range(COLUMNS):
+            alien_group.add(Alien(100 + column * 100, 150 + row * 70))
 
 
 ####Alien bullets Class####
-class Alien_bullets(pygame.sprite.Sprite):
+class AlienBullet(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        super(Alien_bullets, self).__init__()
+        super().__init__()
         self.image = pygame.image.load(image_path("alien_bullet.png")).convert_alpha()
         self.rect = self.image.get_rect()
-        self.rect.center = [x,y]
+        self.rect.center = [x, y]
 
     def update(self):
-    #move the bullet down by 3 pixels every loop
-        self.rect.y +=3
+        #move the bullet down by 3 pixels every loop
+        self.rect.y += 3
         #has the bullet left the screen if so delete the bullet
-        if self.rect.top > screen_height:
+        if self.rect.top > SCREEN_HEIGHT:
             self.kill()
         #Is it True that an alien bullet itself has hit the player
         if pygame.sprite.spritecollide(self, player_group, False):
@@ -189,13 +178,13 @@ class Alien_bullets(pygame.sprite.Sprite):
 
 
 ####Mystery alien####
-class Mystery_alien(pygame.sprite.Sprite):
+class MysteryAlien(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        super(Mystery_alien, self).__init__()
+        super().__init__()
         self.image = pygame.image.load(image_path("mysteryalien.png")).convert_alpha()
         self.rect = self.image.get_rect()
-        self.rect.center = [x,y]
-        self.move_counter = 0 #how far it has moved from where it started
+        self.rect.center = [x, y]
+        self.move_counter = 0  #how far it has moved from where it started
         self.move_direction = 1
 
     def update(self):
@@ -204,14 +193,13 @@ class Mystery_alien(pygame.sprite.Sprite):
         self.rect.x += self.move_direction
         self.move_counter += self.move_direction
         if self.move_counter >= 400 or self.move_counter <= 0:
-            self.move_direction *= -1    #change direction
+            self.move_direction *= -1  #change direction
         if pygame.sprite.spritecollide(self, bullet_group, True):
             explosion1_sound.play()
-            explosion = Alien_explosion(self.rect.centerx, self.rect.centery)
-            alien_explosion_group.add(explosion)
-            reward = random.randint(1,4)
+            alien_explosion_group.add(AlienExplosion(self.rect.centerx, self.rect.centery))
+            reward = random.randint(1, 4)
             if reward == 1:
-                player.lives +=1
+                player.lives += 1
             elif reward == 2:
                 player.score += 100
             elif reward == 3:
@@ -222,16 +210,16 @@ class Mystery_alien(pygame.sprite.Sprite):
 
 
 def create_mystery_alien():
-    mystery_alien = Mystery_alien(100, 80)
-    mystery_alien_group.add(mystery_alien)
+    mystery_alien_group.add(MysteryAlien(100, 80))
+
 
 ####Alien_explosion class####
-class Alien_explosion(pygame.sprite.Sprite):
+class AlienExplosion(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        super(Alien_explosion, self).__init__()
+        super().__init__()
         self.image = pygame.image.load(image_path("explosion1.png")).convert_alpha()
         self.rect = self.image.get_rect()
-        self.rect.center = [x,y]
+        self.rect.center = [x, y]
         self.counter = 0
 
     def update(self):
@@ -242,12 +230,12 @@ class Alien_explosion(pygame.sprite.Sprite):
 
 
 ####Player_explosion class####
-class Player_explosion(pygame.sprite.Sprite):
+class PlayerExplosion(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        super(Player_explosion, self).__init__()
+        super().__init__()
         self.image = pygame.image.load(image_path("explosion2.png")).convert_alpha()
         self.rect = self.image.get_rect()
-        self.rect.center = [x,y]
+        self.rect.center = [x, y]
         self.counter = 0
 
     def update(self):
@@ -255,6 +243,7 @@ class Player_explosion(pygame.sprite.Sprite):
         self.counter += 1
         if self.counter >= explosion_speed:
             self.kill()
+
 
 #set up groups
 player_group = pygame.sprite.Group()
@@ -272,15 +261,14 @@ all_groups = [player_group, bullet_group, alien_group, alien_bullet_group,
 def setup_game():
     """starts pygame, opens the window, loads everything and resets the game
     so you can play more than once without restarting the program"""
-    global screen, clock, background, font, font2
+    global screen, clock, background, font, big_font
     global explosion1_sound, explosion2_sound, laser_sound, player
 
     pygame.init()
     pygame.mixer.init()
-    pygame.font.init()
 
     #Create the screen object
-    screen = pygame.display.set_mode((screen_width, screen_height))
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Space Invaders")
     clock = pygame.time.Clock()
 
@@ -288,7 +276,7 @@ def setup_game():
 
     #define the font type, size and text colours
     font = pygame.font.SysFont("arial", 32)
-    font2 = pygame.font.SysFont("arial", 60)
+    big_font = pygame.font.SysFont("arial", 60)
 
     #load sounds:
     explosion1_sound = pygame.mixer.Sound(sound_path("explosion.wav"))
@@ -300,26 +288,26 @@ def setup_game():
         group.empty()
 
     #create an instance of the Player class
-    player = Player(int(screen_width/2), screen_height - 70)
+    player = Player(int(SCREEN_WIDTH / 2), SCREEN_HEIGHT - 70)
     player_group.add(player)
 
 
 #Main loop:
-def main(dclient = None):
+def main():
     """plays one game and returns the score"""
     setup_game()
 
     #timer as soon as the game starts
-    ticks = pygame.time.get_ticks()
-    ticking = pygame.time.get_ticks()
+    last_alien_shot = pygame.time.get_ticks()
+    last_mystery_spawn = pygame.time.get_ticks()
 
     running = True
     while running:
         #sets the clock speed
-        clock.tick(fps)
+        clock.tick(FPS)
 
         #current time within the game
-        time = pygame.time.get_ticks()
+        now = pygame.time.get_ticks()
 
         # for loop through the event queue
         for event in pygame.event.get():
@@ -336,24 +324,23 @@ def main(dclient = None):
         pressed_keys = pygame.key.get_pressed()
 
         #create the mystery alien
-        if len(mystery_alien_group.sprites()) == 0 and time - ticking > 1050:
+        if not mystery_alien_group and now - last_mystery_spawn > 1050:
             create_mystery_alien()
-            ticking = time
+            last_mystery_spawn = now
 
         #create the aliens when there are no aliens left
-        if len(alien_group.sprites()) == 0:
+        if not alien_group:
             #no bonus for the very first wave
             if player.score > 0:
                 player.score += 100
             create_aliens()
 
         #Alien shooting
-        if player.lives > 0 and time - ticks > alien_cooldown: #after a certain amount of time the enemy shoots
+        if player.lives > 0 and now - last_alien_shot > ALIEN_COOLDOWN:  #after a certain amount of time the enemy shoots
             shooter = random.choice(alien_group.sprites())
-            alien_bullet = Alien_bullets(shooter.rect.centerx, shooter.rect.bottom)
-            alien_bullet_group.add(alien_bullet)
+            alien_bullet_group.add(AlienBullet(shooter.rect.centerx, shooter.rect.bottom))
             laser_sound.play()
-            ticks = time
+            last_alien_shot = now
 
         #update player
         player.update(pressed_keys)
@@ -381,16 +368,16 @@ def main(dclient = None):
         mystery_alien_group.draw(screen)
 
         #draw score
-        draw_text(screen, "SCORE", font, green, 1, 1)
-        draw_text(screen, str(player.score) , font, green, 130, 1)
+        draw_text(screen, "SCORE", font, GREEN, 1, 1)
+        draw_text(screen, str(player.score), font, GREEN, 130, 1)
 
         #draw lives
-        draw_text(screen, "LIVES", font, green, 450, 1)
-        draw_text(screen, str(player.lives), font, green, 560, 1)
+        draw_text(screen, "LIVES", font, GREEN, 450, 1)
+        draw_text(screen, str(player.lives), font, GREEN, 560, 1)
 
         if player.lives <= 0:
-            draw_text(screen, "GAME OVER", font2, red, screen_width/2 - 130 , screen_height/2 + 100)
-            draw_text(screen, "SPACE TO GO BACK TO MAIN SCREEN", font, red, screen_width/2 - 250 , screen_height/2 + 170)
+            draw_text(screen, "GAME OVER", big_font, RED, SCREEN_WIDTH / 2 - 130, SCREEN_HEIGHT / 2 + 100)
+            draw_text(screen, "SPACE TO GO BACK TO MAIN SCREEN", font, RED, SCREEN_WIDTH / 2 - 250, SCREEN_HEIGHT / 2 + 170)
 
         # Update the display
         pygame.display.flip()
@@ -399,6 +386,7 @@ def main(dclient = None):
     #close the game window and go back to the menu
     pygame.quit()
     return score
+
 
 if __name__ == "__main__":
     print("Score:", main())

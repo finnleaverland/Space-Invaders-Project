@@ -1,91 +1,86 @@
 #Menu screen
 
-from tkinter import *
+import tkinter as tk
 
-from . import game as prototype3
-from . import accounts as LS
+from . import game
+from .accounts import ClientList
 
 
-def play_game(dclient):
+def play_game(client):
     """plays a game then saves the score for the logged in player"""
-    screen.withdraw() #hide the menu while the game is running
+    screen.withdraw()  #hide the menu while the game is running
     try:
-        newscore = prototype3.main(dclient)
+        new_score = game.main()
     finally:
-        screen.deiconify() #show the menu again
-    players = LS.client_list()
-    found, index = players.find(dclient)
+        screen.deiconify()  #show the menu again
+    players = ClientList()
+    found, index = players.find(client)
     if found:
-        currentclient = players.get_client(index)
-        currentclient.set_score(newscore)
-        players.update_player_in_list(currentclient)
+        current_client = players.clients[index]
+        current_client.score = new_score
+        players.update_player_in_list(current_client)
 
 
 def leaderboard():
-    theClients = LS.client_list()
-    screen3 = Toplevel(screen)
-    screen3.title('Leaderboard')
-    screen3.geometry("275x225")
+    clients = ClientList()
+    leaderboard_window = tk.Toplevel(screen)
+    leaderboard_window.title("Leaderboard")
+    leaderboard_window.geometry("275x225")
 
-    listbox1 = Text(screen3)
-    listbox2 = Text(screen3)
-    listbox1.config(height = 5, width = 20)
-    listbox2.config(height = 5, width = 10)
-    listbox1.grid(row = 2, column=0, padx = 5, pady = 5)
-    listbox2.grid(row = 2, column=1, padx = 5, pady = 5)
+    names_box = tk.Text(leaderboard_window)
+    scores_box = tk.Text(leaderboard_window)
+    names_box.config(height=5, width=20)
+    scores_box.config(height=5, width=10)
+    names_box.grid(row=2, column=0, padx=5, pady=5)
+    scores_box.grid(row=2, column=1, padx=5, pady=5)
 
     #populate a list of top 5 players and their scores
-    listofplayers = ""
-    listofscores = ""
-    for player in theClients.top_players(5):
-        listofplayers += f"{player.get_username()}\n"
-        listofscores += f"{player.get_highest_score()}\n"
-    listbox1.insert(END, listofplayers)
-    listbox2.insert(END, listofscores)
+    names = ""
+    scores = ""
+    for player in clients.top_players(5):
+        names += f"{player.username}\n"
+        scores += f"{player.highest_score}\n"
+    names_box.insert(tk.END, names)
+    scores_box.insert(tk.END, scores)
     #make the boxes read only
-    listbox1.config(state = DISABLED)
-    listbox2.config(state = DISABLED)
+    names_box.config(state=tk.DISABLED)
+    scores_box.config(state=tk.DISABLED)
 
 
 def how_to_play():
-    screen2 = Toplevel(screen)
-    screen2.title('HOW TO PLAY')
-    screen2.geometry("500x400")
+    help_window = tk.Toplevel(screen)
+    help_window.title("HOW TO PLAY")
+    help_window.geometry("500x400")
 
-    Label(screen2, text = "HOW TO PLAY", font= ("Arial", 20), bg = "light blue", width = "300", height = "2").pack()
-    Label(screen2, text = "").pack()
-    Label(screen2, text = "").pack()
-    Label(screen2, text = "1) Do NOT get hit by the enemies' bullets").pack()
-    Label(screen2, text = "2) YOU have 5 lives").pack()
-    Label(screen2, text = "3) YOU have infinite bullets (It works better holding down the spacebar)").pack()
-    Label(screen2, text = "4) AIM: KILL all the enemies").pack()
-    Label(screen2, text = "5) 10 points for every enemy killed").pack()
-    Label(screen2, text = "6) The SPECIAL enemy rewards either an extra life or 100-200 points").pack()
-    Label(screen2, text = "7) The game is INFINITE").pack()
-    Label(screen2, text = "8) MOST points win").pack()
+    tk.Label(help_window, text="HOW TO PLAY", font=("Arial", 20), bg="light blue", width="300", height="2").pack()
+    tk.Label(help_window, text="").pack()
+    tk.Label(help_window, text="").pack()
+    tk.Label(help_window, text="1) Do NOT get hit by the enemies' bullets").pack()
+    tk.Label(help_window, text="2) YOU have 5 lives").pack()
+    tk.Label(help_window, text="3) YOU have infinite bullets (It works better holding down the spacebar)").pack()
+    tk.Label(help_window, text="4) AIM: KILL all the enemies").pack()
+    tk.Label(help_window, text="5) 10 points for every enemy killed").pack()
+    tk.Label(help_window, text="6) The SPECIAL enemy rewards either an extra life or 100-200 points").pack()
+    tk.Label(help_window, text="7) The game is INFINITE").pack()
+    tk.Label(help_window, text="8) MOST points win").pack()
 
 
-def menu_screen(dclient):
+def main(client):
     global screen
-    screen = Tk()
-    screen.title('Menu')
+    screen = tk.Tk()
+    screen.title("Menu")
     screen.geometry("500x400")
 
-    Label(text = "MENU", font= ("Arial", 20), bg = "light blue", width = "300", height = "2").pack()
-    Label(text = "").pack()
-    Label(text = f"Welcome {dclient.get_username()}!").pack()
-    Label(text = "").pack()
-    Label(text = "").pack()
+    tk.Label(text="MENU", font=("Arial", 20), bg="light blue", width="300", height="2").pack()
+    tk.Label(text="").pack()
+    tk.Label(text=f"Welcome {client.username}!").pack()
+    tk.Label(text="").pack()
+    tk.Label(text="").pack()
     #lambda so the game only starts when the button is pressed
-    Button(text = "Play", bg = "light blue", width = "50", height = "2", command = lambda: play_game(dclient)).pack()
-    Label(text = "").pack()
-    Button(text = "How to play", bg = "light blue", width = "50", height = "2", command = how_to_play).pack()
-    Label(text = "").pack()
-    Button(text = "Leaderboard", bg = "light blue", width = "50", height = "2", command = leaderboard).pack()
+    tk.Button(text="Play", bg="light blue", width="50", height="2", command=lambda: play_game(client)).pack()
+    tk.Label(text="").pack()
+    tk.Button(text="How to play", bg="light blue", width="50", height="2", command=how_to_play).pack()
+    tk.Label(text="").pack()
+    tk.Button(text="Leaderboard", bg="light blue", width="50", height="2", command=leaderboard).pack()
 
     screen.mainloop()
-
-if __name__ == "__main__":
-    #the menu needs a logged in player, so start from the login screen
-    from . import login_screen as Login1
-    Login1.main_screen()
