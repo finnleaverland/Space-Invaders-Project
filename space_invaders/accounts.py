@@ -3,8 +3,9 @@
 import csv
 import os
 
-#Store the client file next to this script so it works whatever folder you run from
-DEFAULT_CLIENT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Clientfile.txt")
+#Store the client file in the project folder so it works whatever folder you run from
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_CLIENT_FILE = os.path.join(PROJECT_ROOT, "Clientfile.txt")
 
 
 def to_int(value):

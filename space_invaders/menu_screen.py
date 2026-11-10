@@ -2,8 +2,8 @@
 
 from tkinter import *
 
-import prototype3
-import Loginsystem as LS
+from . import game as prototype3
+from . import accounts as LS
 
 
 def play_game(dclient):
@@ -87,5 +87,5 @@ def menu_screen(dclient):
 
 if __name__ == "__main__":
     #the menu needs a logged in player, so start from the login screen
-    import Login1
+    from . import login_screen as Login1
     Login1.main_screen()

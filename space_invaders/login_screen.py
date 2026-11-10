@@ -2,8 +2,8 @@
 
 from tkinter import *
 
-import Loginsystem as LS
-import mainscreen
+from . import accounts as LS
+from . import menu_screen as mainscreen
 
 
 def load_clients():

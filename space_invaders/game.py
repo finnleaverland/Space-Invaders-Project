@@ -12,12 +12,18 @@ from pygame.locals import (
     QUIT,
 )
 
-#Folder this file is in, so the images and sounds load whatever folder you run from
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+#Asset folders, so the images and sounds load whatever folder you run from
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+IMAGE_DIR = os.path.join(PROJECT_ROOT, "assets", "images")
+SOUND_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
 
-def asset(filename):
-    """full path to an image or sound file"""
-    return os.path.join(BASE_DIR, filename)
+def image_path(filename):
+    """full path to an image file"""
+    return os.path.join(IMAGE_DIR, filename)
+
+def sound_path(filename):
+    """full path to a sound file"""
+    return os.path.join(SOUND_DIR, filename)
 
 #Define constants for the screen width and height
 screen_width = 600
@@ -55,7 +61,7 @@ def draw_text(screen, text, font, text_colour, x, y):
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super(Player, self).__init__()
-        self.image = pygame.image.load(asset("spaceship.png")).convert_alpha()
+        self.image = pygame.image.load(image_path("spaceship.png")).convert_alpha()
         self.rect = self.image.get_rect()
         self.rect.center = [x,y]
         self.count = 0
@@ -111,7 +117,7 @@ class Player(pygame.sprite.Sprite):
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super(Bullet, self).__init__()
-        self.image = pygame.image.load(asset("bullet.png")).convert_alpha()
+        self.image = pygame.image.load(image_path("bullet.png")).convert_alpha()
         self.rect = self.image.get_rect()
         self.rect.center = [x,y]
 
@@ -139,7 +145,7 @@ alien_cooldown = 1000 #1 second
 class Aliens(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super(Aliens, self).__init__()
-        self.image = pygame.image.load(asset("alien" + str(random.randint(1, 4)) + ".png")).convert_alpha()
+        self.image = pygame.image.load(image_path("alien" + str(random.randint(1, 4)) + ".png")).convert_alpha()
         self.rect = self.image.get_rect()
         self.rect.center = [x,y]
         self.move_counter = 0 #how far the alien is from where it started
@@ -166,7 +172,7 @@ def create_aliens():
 class Alien_bullets(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super(Alien_bullets, self).__init__()
-        self.image = pygame.image.load(asset("alien_bullet.png")).convert_alpha()
+        self.image = pygame.image.load(image_path("alien_bullet.png")).convert_alpha()
         self.rect = self.image.get_rect()
         self.rect.center = [x,y]
 
@@ -186,7 +192,7 @@ class Alien_bullets(pygame.sprite.Sprite):
 class Mystery_alien(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super(Mystery_alien, self).__init__()
-        self.image = pygame.image.load(asset("mysteryalien.png")).convert_alpha()
+        self.image = pygame.image.load(image_path("mysteryalien.png")).convert_alpha()
         self.rect = self.image.get_rect()
         self.rect.center = [x,y]
         self.move_counter = 0 #how far it has moved from where it started
@@ -223,7 +229,7 @@ def create_mystery_alien():
 class Alien_explosion(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super(Alien_explosion, self).__init__()
-        self.image = pygame.image.load(asset("explosion1.png")).convert_alpha()
+        self.image = pygame.image.load(image_path("explosion1.png")).convert_alpha()
         self.rect = self.image.get_rect()
         self.rect.center = [x,y]
         self.counter = 0
@@ -239,7 +245,7 @@ class Alien_explosion(pygame.sprite.Sprite):
 class Player_explosion(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super(Player_explosion, self).__init__()
-        self.image = pygame.image.load(asset("explosion2.png")).convert_alpha()
+        self.image = pygame.image.load(image_path("explosion2.png")).convert_alpha()
         self.rect = self.image.get_rect()
         self.rect.center = [x,y]
         self.counter = 0
@@ -278,16 +284,16 @@ def setup_game():
     pygame.display.set_caption("Space Invaders")
     clock = pygame.time.Clock()
 
-    background = pygame.image.load(asset("background.png")).convert()
+    background = pygame.image.load(image_path("background.png")).convert()
 
     #define the font type, size and text colours
     font = pygame.font.SysFont("arial", 32)
     font2 = pygame.font.SysFont("arial", 60)
 
     #load sounds:
-    explosion1_sound = pygame.mixer.Sound(asset("explosion.wav"))
-    explosion2_sound = pygame.mixer.Sound(asset("explosion2.wav"))
-    laser_sound = pygame.mixer.Sound(asset("laser.wav"))
+    explosion1_sound = pygame.mixer.Sound(sound_path("explosion.wav"))
+    explosion2_sound = pygame.mixer.Sound(sound_path("explosion2.wav"))
+    laser_sound = pygame.mixer.Sound(sound_path("laser.wav"))
 
     #clear anything left over from the last game
     for group in all_groups:
