@@ -1,0 +1,12 @@
+# Player accounts (contains password hashes and scores) - never commit
+Clientfile.txt
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+.venv/
+
+# Tooling
+.pytest_cache/
