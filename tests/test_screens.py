@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from space_invaders import accounts, game, theme
+from space_invaders import accounts, game, settings, theme
 from space_invaders import app as app_module
 from space_invaders.accounts import Client, ClientList
 from space_invaders.validation import SECURITY_QUESTIONS
@@ -44,6 +44,7 @@ def root():
 def accounts_file(tmp_path, monkeypatch):
     path = tmp_path / "Clientfile.txt"
     monkeypatch.setattr(accounts, "CLIENT_FILE", str(path))
+    monkeypatch.setattr(settings, "SETTINGS_FILE", str(tmp_path / "settings.json"))
     monkeypatch.setattr(accounts, "HASH_ITERATIONS", 1_000)
     clients = ClientList()
     alice = Client.new("alice", "alice-pass", "First pet?", "Rex")
@@ -416,3 +417,28 @@ def test_leaderboard_adds_your_row_when_you_are_outside_the_top_ten(app):
     assert len(rows) == 12  # top ten, a gap row, then you
     assert rows[10][0][0] == "…"
     assert rows[11] == (("14", "dan (you)", "0"), ("you",))
+
+
+def test_volume_slider_saves_the_volume(app):
+    log_in(app)
+    assert app.screen.volume_label.cget("text") == "60%"  # the default
+    app.screen.volume.set(25)
+    app.screen.on_volume_change()
+    assert settings.load_volume() == 0.25
+    assert app.screen.volume_label.cget("text") == "25%"
+    app.screen.volume.set(0)
+    app.screen.on_volume_change()
+    assert app.screen.volume_label.cget("text") == "Off"
+
+
+def test_play_passes_the_high_score_and_volume_to_the_game(app, monkeypatch):
+    received = {}
+
+    def fake_game(**kwargs):
+        received.update(kwargs)
+        return 0
+    monkeypatch.setattr(game, "main", fake_game)
+    settings.save_volume(0.4)
+    log_in(app)
+    click(app, "Play")
+    assert received == {"high_score": 50, "volume": 0.4}

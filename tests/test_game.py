@@ -305,3 +305,24 @@ def test_alien_explosions_are_centred_on_the_alien(game):
     game.bullet_group.update()
     explosion = game.alien_explosion_group.sprites()[0]
     assert explosion.rect.center == alien.rect.center
+
+
+# --- Sound ----------------------------------------------------------------------------
+
+def test_each_sound_is_set_to_its_level_times_the_volume():
+    game = Game(volume=0.5)
+    try:
+        for name, sound in game.sounds.items():
+            assert sound.get_volume() == pytest.approx(game_module.SOUND_LEVELS[name] * 0.5, abs=0.01)
+        assert game.laser_sound.get_volume() < game.explosion_sound.get_volume()
+    finally:
+        pygame.quit()
+
+
+def test_m_mutes_and_unmutes(game):
+    game.handle_key(pygame.K_m)
+    assert game.muted
+    assert all(sound.get_volume() == 0 for sound in game.sounds.values())
+    game.handle_key(pygame.K_m)
+    assert not game.muted
+    assert all(sound.get_volume() > 0 for sound in game.sounds.values())

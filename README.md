@@ -17,6 +17,8 @@ leaderboard.
 - **Game screens:** a start screen, pause (P), a readable top bar with score, wave and lives,
   and a game-over screen showing your score, your high score and whether you beat it
 - **Effects:** animated explosions, and a short blinking invincibility after losing a life
+- **Sound:** balanced effect volumes, a volume slider on the menu that's remembered between
+  sessions, and M to mute during a game
 - **Mystery alien:** a special enemy crossing the top of the screen that gives a random
   reward: an extra life or 100, 150 or 200 points
 - **Player accounts:** register, log in, delete an account, and reset a forgotten password
@@ -55,8 +57,9 @@ python main.py
 > pygame-ce replaces the original `pygame` package. If `pygame` is already installed in the
 > same environment, uninstall it first (`pip uninstall pygame`).
 
-Register an account to get started. Accounts and scores are saved in `Clientfile.txt` in the
-project folder, which is created the first time you run the game.
+Register an account to get started. Accounts and scores are saved in `Clientfile.txt`, and
+the volume in `settings.json`, both in the project folder and created the first time they're
+needed.
 
 ## Controls
 
@@ -66,6 +69,7 @@ project folder, which is created the first time you run the game.
 | Left / Right arrow | Move the ship |
 | Space | Shoot (hold it down to keep firing) |
 | P | Pause and carry on |
+| M | Sound on / off |
 | Space (after game over) | Return to the menu |
 | Esc | Stop playing and return to the menu |
 
@@ -82,6 +86,8 @@ python -m pytest
 main.py                  Starts the game at the welcome screen
 space_invaders/
     accounts.py          Client and ClientList: accounts, hashing, sorting, searching, saving
+    validation.py        Rules for usernames, passwords and security questions
+    settings.py          Saves and loads the volume
     app.py               The single tkinter window that switches between screens
     theme.py             Dark space theme: colours, font, ttk styles, display scaling
     widgets.py           Screen base class with shared form helpers
@@ -96,6 +102,9 @@ tools/
 tests/
     test_accounts.py     pytest tests for the account system
     test_screens.py      pytest tests that drive the tkinter screens
+    test_game.py         pytest tests that run the game frame by frame without a window
+    test_validation.py   pytest tests for the account rules
+    test_settings.py     pytest tests for saving the volume
 ```
 
 ## How passwords are stored

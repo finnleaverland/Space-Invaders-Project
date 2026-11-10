@@ -9,7 +9,7 @@ import os
 import random
 
 import pygame
-from pygame.locals import K_ESCAPE, K_LEFT, K_RIGHT, K_SPACE, KEYDOWN, QUIT, K_p
+from pygame.locals import K_ESCAPE, K_LEFT, K_RIGHT, K_SPACE, KEYDOWN, QUIT, K_m, K_p
 
 # Asset folders, so the images and sounds load whatever folder you run from
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -48,6 +48,15 @@ FONT_NAMES = "segoeui,helveticaneue,helvetica,dejavusans,arial"
 SMALL_FONT_SIZE = 18
 FONT_SIZE = 26
 BIG_FONT_SIZE = 64
+
+# Sound: how loud each effect is at full volume. The laser plays all the time, so it's
+# the quietest; the player's ship exploding is the loudest. The menu's volume slider
+# scales all of them.
+SOUND_LEVELS = {
+    "laser": 0.25,
+    "explosion": 0.5,
+    "player_explosion": 0.7,
+}
 
 # Top bar
 BAR_HEIGHT = 44
@@ -297,7 +306,7 @@ def split_strip(strip, frame_size):
 class Game:
     """One game of Space Invaders: the window, the loaded assets, every sprite and the timers."""
 
-    def __init__(self, high_score=0):
+    def __init__(self, high_score=0, volume=1.0):
         pygame.init()
         pygame.mixer.init()
 
@@ -319,6 +328,11 @@ class Game:
         self.explosion_sound = pygame.mixer.Sound(sound_path("explosion.ogg"))
         self.player_death_sound = pygame.mixer.Sound(sound_path("player_explosion.ogg"))
         self.laser_sound = pygame.mixer.Sound(sound_path("laser.ogg"))
+        self.sounds = {"laser": self.laser_sound, "explosion": self.explosion_sound,
+                       "player_explosion": self.player_death_sound}
+        self.volume = volume  # 0.0 to 1.0, from the menu's volume slider
+        self.muted = False
+        self.apply_volume()
 
         self.player_group = pygame.sprite.Group()
         self.bullet_group = pygame.sprite.Group()
@@ -344,6 +358,12 @@ class Game:
     @property
     def new_high_score(self):
         return self.player.score > self.high_score
+
+    def apply_volume(self):
+        """Set each sound to its own level, scaled by the volume (silent when muted)."""
+        master = 0.0 if self.muted else self.volume
+        for name, sound in self.sounds.items():
+            sound.set_volume(SOUND_LEVELS[name] * master)
 
     @property
     def alien_speed(self):
@@ -387,6 +407,9 @@ class Game:
             self.state = PAUSED
         elif key == K_p and self.state == PAUSED:
             self.state = PLAYING
+        elif key == K_m:
+            self.muted = not self.muted
+            self.apply_volume()
 
     def can_leave(self):
         """After dying, SPACE only works once the explosion has had time to play."""
@@ -500,7 +523,7 @@ class Game:
         if (pygame.time.get_ticks() // 600) % 2 == 0:  # blink
             self.draw_text("Press SPACE to start", self.font, TEXT, center=(middle, 420))
         for row, line in enumerate(("LEFT / RIGHT  move", "SPACE  shoot (hold to keep firing)",
-                                    "P  pause", "ESC  quit to the menu")):
+                                    "P  pause", "M  sound on / off", "ESC  quit to the menu")):
             self.draw_text(line, self.small_font, MUTED, center=(middle, 520 + row * 30))
 
     def draw_top_bar(self):
@@ -511,6 +534,10 @@ class Game:
         middle_y = BAR_HEIGHT // 2
         self.draw_text(f"SCORE  {self.player.score}", self.font, TEXT, midleft=(BAR_MARGIN, middle_y))
         self.draw_text(f"WAVE  {self.wave}", self.font, ACCENT, center=(SCREEN_WIDTH // 2, middle_y))
+
+        if self.muted:
+            self.draw_text("SOUND OFF", self.small_font, MUTED,
+                           topright=(SCREEN_WIDTH - BAR_MARGIN, BAR_HEIGHT + 6))
 
         lives = self.player.lives
         right = SCREEN_WIDTH - BAR_MARGIN
@@ -557,13 +584,14 @@ class Game:
         return rect
 
 
-def main(high_score=0):
+def main(high_score=0, volume=1.0):
     """Play one game in a new window, close the window, and return the final score.
 
     high_score is the player's best score so far, shown on the start and game over screens.
+    volume (0.0 to 1.0) comes from the menu's volume slider.
     """
     try:
-        return Game(high_score).run()
+        return Game(high_score, volume).run()
     finally:
         pygame.quit()
 

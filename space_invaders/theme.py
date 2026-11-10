@@ -120,7 +120,10 @@ def apply_theme(root):
                     indicatorsize=px(14), indicatormargin=(0, 0, px(6), 0))
     style.map("TCheckbutton", background=[("active", BACKGROUND)], foreground=[("active", TEXT)])
 
-    style.configure("Horizontal.TScale", background=ACCENT, troughcolor=SURFACE)
+    style.configure("Horizontal.TScale", background=ACCENT, troughcolor=SURFACE,
+                    bordercolor=BORDER, lightcolor=ACCENT, darkcolor=ACCENT,
+                    sliderlength=px(18), sliderthickness=px(18), gripcount=0)
+    style.map("Horizontal.TScale", background=[("active", ACCENT_HOVER)])
 
     style.configure("Treeview", background=SURFACE, fieldbackground=SURFACE, foreground=TEXT,
                     rowheight=px(28), borderwidth=0)

@@ -1,7 +1,8 @@
 """Screens shown after logging in: the menu, leaderboard, how to play and delete account."""
+import tkinter as tk
 from tkinter import ttk
 
-from . import game, theme
+from . import game, settings, theme
 from .accounts import ClientList
 from .widgets import Screen
 
@@ -19,7 +20,7 @@ HOW_TO_PLAY = (
     f"The SPECIAL enemy gives either an extra life or {min(_POINT_REWARDS)}-{max(_POINT_REWARDS)} points",
     "The invaders drop closer each time they reach the edge. Don't let them land!",
     "The game is endless: each new wave moves and shoots a bit faster",
-    "Press P to pause, and ESC to stop playing",
+    "Press P to pause, M to turn the sound on or off, and ESC to stop playing",
     "The most points wins",
 )
 
@@ -38,9 +39,29 @@ class MenuScreen(Screen):
         self.add_button("Leaderboard", lambda: self.app.show("leaderboard"))
         self.add_button("How to play", lambda: self.app.show("how_to_play"))
         self.add_button("Delete account", lambda: self.app.show("delete_account"))
+        self.add_volume_slider()
         self.add_message_line()
         self.add_back_button(self.app.log_out, text="Log out")
         self.back_command = None  # Escape shouldn't log the player out
+
+
+    def add_volume_slider(self):
+        """A slider for the game's volume, saved as soon as it changes."""
+        row = ttk.Frame(self.body)
+        row.pack(fill="x", pady=(theme.px(theme.GAP * 2), 0))
+        ttk.Label(row, text="Volume", style="Muted.TLabel").pack(side="left")
+        self.volume_label = ttk.Label(row, text="", style="Muted.TLabel")
+        self.volume_label.pack(side="right")
+        self.volume = tk.DoubleVar(value=round(settings.load_volume() * 100))
+        self.volume_slider = ttk.Scale(self.body, from_=0, to=100, variable=self.volume,
+                                       command=self.on_volume_change)
+        self.volume_slider.pack(fill="x", pady=(theme.px(theme.FIELD_GAP), 0))
+        self.on_volume_change()
+
+    def on_volume_change(self, value=None):
+        percent = round(self.volume.get())
+        self.volume_label.configure(text="Off" if percent == 0 else f"{percent}%")
+        settings.save_volume(percent / 100)
 
 
 class LeaderboardScreen(Screen):

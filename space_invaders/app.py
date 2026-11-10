@@ -1,5 +1,5 @@
 """The main window. It shows one screen at a time and starts games."""
-from . import game, theme
+from . import game, settings, theme
 from .accounts import ClientList
 from .login_screen import LoginScreen, RegisterScreen, ResetPasswordScreen, WelcomeScreen
 from .menu_screen import DeleteAccountScreen, HowToPlayScreen, LeaderboardScreen, MenuScreen
@@ -61,7 +61,8 @@ class App:
         """Hide the window, play one game, save the score and come back to the menu."""
         self.root.withdraw()
         try:
-            score = game.main(high_score=self.client.highest_score)
+            score = game.main(high_score=self.client.highest_score,
+                              volume=settings.load_volume())
         finally:
             self.root.deiconify()
             self.root.focus_force()

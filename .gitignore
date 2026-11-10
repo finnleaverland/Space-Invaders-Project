@@ -1,5 +1,6 @@
-# Player accounts (contains password hashes and scores) - never commit
+# Player accounts (contains password hashes and scores) and settings - never commit
 Clientfile.txt
+settings.json
 
 # Original artwork that can't be redistributed - kept locally only
 source-art/
