@@ -12,6 +12,8 @@ leaderboard.
 
 - **Arcade gameplay:** waves of aliens that sway and shoot back, five lives, and endless
   waves with a bonus for every wave cleared
+- **Game screens:** a start screen, pause (P), a readable top bar with score, wave and lives,
+  and a game-over screen showing your score, your high score and whether you beat it
 - **Mystery alien:** a special enemy crossing the top of the screen that gives a random
   reward: an extra life or 100, 150 or 200 points
 - **Player accounts:** register, log in, delete an account, and reset a forgotten password
@@ -57,8 +59,10 @@ project folder, which is created the first time you run the game.
 
 | Key | Action |
 | --- | --- |
+| Space (start screen) | Start the game |
 | Left / Right arrow | Move the ship |
 | Space | Shoot (hold it down to keep firing) |
+| P | Pause and carry on |
 | Space (after game over) | Return to the menu |
 | Esc | Stop playing and return to the menu |
 

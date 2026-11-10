@@ -61,7 +61,7 @@ class App:
         """Hide the window, play one game, save the score and come back to the menu."""
         self.root.withdraw()
         try:
-            score = game.main()
+            score = game.main(high_score=self.client.highest_score)
         finally:
             self.root.deiconify()
             self.root.focus_force()

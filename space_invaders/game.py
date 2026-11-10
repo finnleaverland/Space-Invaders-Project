@@ -1,12 +1,15 @@
 """The Space Invaders game itself, written with pygame.
 
 Call main() to play one game in its own window. It returns the final score.
+
+A game moves through four states: the start screen, playing, paused and game over.
+Game time only moves forward while playing, so pausing really does freeze everything.
 """
 import os
 import random
 
 import pygame
-from pygame.locals import K_ESCAPE, K_LEFT, K_RIGHT, K_SPACE, KEYDOWN, QUIT
+from pygame.locals import K_ESCAPE, K_LEFT, K_RIGHT, K_SPACE, KEYDOWN, QUIT, K_p
 
 # Asset folders, so the images and sounds load whatever folder you run from
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,20 +22,38 @@ SCREEN_HEIGHT = 800
 FPS = 60
 WINDOW_TITLE = "Space Invaders"
 
-# Colours and fonts
-GREEN = (0, 255, 0)
-RED = (255, 0, 0)
-FONT_NAME = "arial"
-FONT_SIZE = 32
-BIG_FONT_SIZE = 60
+FRAME_MS = 1000 / FPS  # game time that passes each frame
 
-# Text positions
-SCORE_LABEL_POS = (1, 1)
-SCORE_VALUE_POS = (130, 1)
-LIVES_LABEL_POS = (450, 1)
-LIVES_VALUE_POS = (560, 1)
-GAME_OVER_POS = (SCREEN_WIDTH / 2 - 130, SCREEN_HEIGHT / 2 + 100)
-RETURN_HINT_POS = (SCREEN_WIDTH / 2 - 250, SCREEN_HEIGHT / 2 + 170)
+# Game states
+READY = "ready"  # the start screen
+PLAYING = "playing"
+PAUSED = "paused"
+GAME_OVER = "game over"
+GAME_OVER_DELAY = 1200  # ms after dying before SPACE returns to the menu (so it isn't skipped by accident)
+
+# Colours (the same palette as the menus in theme.py)
+TEXT = (232, 236, 248)
+MUTED = (141, 148, 179)
+ACCENT = (79, 195, 247)
+WARNING = (255, 107, 107)
+GOLD = (255, 209, 102)
+BAR_COLOUR = (11, 14, 31, 200)  # the top bar: dark and slightly see-through
+OVERLAY_COLOUR = (11, 14, 31, 170)  # dims the game behind pause and game over text
+PANEL_COLOUR = (22, 27, 54, 240)  # the box that pause and game over text sits on
+PANEL_BORDER = (44, 53, 96)
+PANEL_RADIUS = 16
+
+# Fonts (the first one installed is used)
+FONT_NAMES = "segoeui,helveticaneue,helvetica,dejavusans,arial"
+SMALL_FONT_SIZE = 18
+FONT_SIZE = 26
+BIG_FONT_SIZE = 64
+
+# Top bar
+BAR_HEIGHT = 44
+BAR_MARGIN = 14
+LIFE_ICON_SIZE = (26, 20)
+MAX_LIFE_ICONS = 5  # with more lives than this, a number is shown instead
 
 # Player
 PLAYER_START_POS = (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 70)
@@ -239,10 +260,11 @@ class Explosion(pygame.sprite.Sprite):
 class Game:
     """One game of Space Invaders: the window, the loaded assets, every sprite and the timers."""
 
-    def __init__(self):
+    def __init__(self, high_score=0):
         pygame.init()
         pygame.mixer.init()
 
+        os.environ.setdefault("SDL_VIDEO_CENTERED", "1")  # open the window in the middle of the screen
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption(WINDOW_TITLE)
         self.clock = pygame.time.Clock()
@@ -251,8 +273,10 @@ class Game:
         self.background = pygame.image.load(image_path("background.png")).convert()
         self.images = {name: pygame.image.load(image_path(name)).convert_alpha()
                        for name in SPRITE_IMAGES}
-        self.font = pygame.font.SysFont(FONT_NAME, FONT_SIZE)
-        self.big_font = pygame.font.SysFont(FONT_NAME, BIG_FONT_SIZE)
+        self.life_icon = pygame.transform.smoothscale(self.images["spaceship.png"], LIFE_ICON_SIZE)
+        self.small_font = pygame.font.SysFont(FONT_NAMES, SMALL_FONT_SIZE)
+        self.font = pygame.font.SysFont(FONT_NAMES, FONT_SIZE, bold=True)
+        self.big_font = pygame.font.SysFont(FONT_NAMES, BIG_FONT_SIZE, bold=True)
         self.explosion_sound = pygame.mixer.Sound(sound_path("explosion.ogg"))
         self.player_death_sound = pygame.mixer.Sound(sound_path("player_explosion.ogg"))
         self.laser_sound = pygame.mixer.Sound(sound_path("laser.ogg"))
@@ -268,61 +292,85 @@ class Game:
         self.player = Player(self, *PLAYER_START_POS)
         self.player_group.add(self.player)
 
-        self.last_alien_shot = 0
-        self.last_mystery_spawn = 0
+        self.high_score = high_score  # the player's best score before this game
+        self.state = READY
+        self.running = True
+        self.time = 0.0  # game time in ms; only moves forward while playing
+        self.wave = 0
+        self.last_alien_shot = 0.0
+        self.last_mystery_spawn = 0.0
+        self.died_at = None
+
+    @property
+    def new_high_score(self):
+        return self.player.score > self.high_score
 
     def run(self):
-        """Run the game loop and return the final score.
-
-        The game ends when the window is closed, ESC is pressed, or SPACE is pressed
-        after game over.
-        """
-        self.last_alien_shot = pygame.time.get_ticks()
-        self.last_mystery_spawn = pygame.time.get_ticks()
-
-        running = True
-        while running:
+        """Run the game loop until the player leaves, and return the final score."""
+        while self.running:
             self.clock.tick(FPS)
-            now = pygame.time.get_ticks()
-            # The rest of the frame still runs after quitting, so the last frame is drawn
-            running = self.handle_events()
-            pressed_keys = pygame.key.get_pressed()
-            self.spawn_enemies(now)
-            self.update(pressed_keys)
+            for event in pygame.event.get():
+                self.handle_event(event)
+            self.step(pygame.key.get_pressed())
             self.draw()
             pygame.display.flip()
-
         return self.player.score
 
-    def handle_events(self):
-        """Process window and key events. Returns False when the game should end."""
-        running = True
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                running = False
-            elif event.type == KEYDOWN:
-                if event.key == K_ESCAPE:
-                    running = False
-                elif event.key == K_SPACE and self.player.lives <= 0:
-                    running = False  # once the game is over, SPACE goes back to the menu
-        return running
+    # --- Input -----------------------------------------------------------------------
 
-    def spawn_enemies(self, now):
+    def handle_event(self, event):
+        """React to the window being closed and to single key presses."""
+        if event.type == QUIT:
+            self.running = False
+        elif event.type == KEYDOWN:
+            self.handle_key(event.key)
+
+    def handle_key(self, key):
+        if key == K_ESCAPE:
+            self.running = False
+        elif key == K_SPACE and self.state == READY:
+            self.state = PLAYING
+        elif key == K_SPACE and self.state == GAME_OVER and self.can_leave():
+            self.running = False
+        elif key == K_p and self.state == PLAYING:
+            self.state = PAUSED
+        elif key == K_p and self.state == PAUSED:
+            self.state = PLAYING
+
+    def can_leave(self):
+        """After dying, SPACE only works once the explosion has had time to play."""
+        return self.died_at is not None and self.time - self.died_at >= GAME_OVER_DELAY
+
+    # --- One frame of game logic ---------------------------------------------------------
+
+    def step(self, pressed_keys):
+        """Advance the game by one frame (nothing moves on the start screen or while paused)."""
+        if self.state not in (PLAYING, GAME_OVER):
+            return
+        self.time += FRAME_MS
+        self.spawn_enemies()
+        self.update(pressed_keys)
+        if self.state == PLAYING and self.player.lives <= 0:
+            self.state = GAME_OVER
+            self.died_at = self.time
+
+    def spawn_enemies(self):
         """Bring in the mystery alien and new waves, and let a random alien shoot."""
-        if not self.mystery_alien_group and now - self.last_mystery_spawn > MYSTERY_SPAWN_DELAY:
+        if not self.mystery_alien_group and self.time - self.last_mystery_spawn > MYSTERY_SPAWN_DELAY:
             self.mystery_alien_group.add(MysteryAlien(self, *MYSTERY_START_POS))
-            self.last_mystery_spawn = now
+            self.last_mystery_spawn = self.time
 
         if not self.alien_group:
-            if self.player.score > 0:  # no bonus for the very first wave
+            if self.wave > 0:  # no bonus before the very first wave
                 self.player.score += WAVE_BONUS
+            self.wave += 1
             self.create_aliens()
 
-        if self.player.lives > 0 and now - self.last_alien_shot > ALIEN_SHOT_COOLDOWN:
+        if self.player.lives > 0 and self.time - self.last_alien_shot > ALIEN_SHOT_COOLDOWN:
             shooter = random.choice(self.alien_group.sprites())
             self.alien_bullet_group.add(AlienBullet(self, shooter.rect.centerx, shooter.rect.bottom))
             self.laser_sound.play()
-            self.last_alien_shot = now
+            self.last_alien_shot = self.time
 
     def create_aliens(self):
         """Fill the grid with a new wave of aliens."""
@@ -342,32 +390,99 @@ class Game:
         self.player_explosion_group.update()
         self.mystery_alien_group.update()
 
+    # --- Drawing -----------------------------------------------------------------------
+
     def draw(self):
-        """Draw the background, every sprite, the score and lives, and the game over text."""
+        """Draw the current state: start screen, game, pause overlay or game over."""
         self.screen.blit(self.background, (0, 0))
+        if self.state == READY:
+            self.draw_start_screen()
+            return
         for group in (self.player_group, self.bullet_group, self.alien_group,
                       self.alien_bullet_group, self.alien_explosion_group,
                       self.player_explosion_group, self.mystery_alien_group):
             group.draw(self.screen)
+        self.draw_top_bar()
+        if self.state == PAUSED:
+            self.draw_overlay()
+            self.draw_panel(height=170, centre_y=390)
+            self.draw_text("PAUSED", self.big_font, TEXT, center=(SCREEN_WIDTH // 2, 370))
+            self.draw_text("Press P to carry on  ·  ESC to quit", self.small_font, MUTED,
+                           center=(SCREEN_WIDTH // 2, 430))
+        elif self.state == GAME_OVER:
+            self.draw_game_over()
 
-        self.draw_text("SCORE", self.font, GREEN, SCORE_LABEL_POS)
-        self.draw_text(str(self.player.score), self.font, GREEN, SCORE_VALUE_POS)
-        self.draw_text("LIVES", self.font, GREEN, LIVES_LABEL_POS)
-        self.draw_text(str(self.player.lives), self.font, GREEN, LIVES_VALUE_POS)
+    def draw_start_screen(self):
+        middle = SCREEN_WIDTH // 2
+        self.draw_text("SPACE INVADERS", self.big_font, ACCENT, center=(middle, 250))
+        self.draw_text(f"Your high score: {self.high_score}", self.small_font, MUTED, center=(middle, 310))
+        if (pygame.time.get_ticks() // 600) % 2 == 0:  # blink
+            self.draw_text("Press SPACE to start", self.font, TEXT, center=(middle, 420))
+        for row, line in enumerate(("LEFT / RIGHT  move", "SPACE  shoot (hold to keep firing)",
+                                    "P  pause", "ESC  quit to the menu")):
+            self.draw_text(line, self.small_font, MUTED, center=(middle, 520 + row * 30))
 
-        if self.player.lives <= 0:
-            self.draw_text("GAME OVER", self.big_font, RED, GAME_OVER_POS)
-            self.draw_text("SPACE TO GO BACK TO MAIN SCREEN", self.font, RED, RETURN_HINT_POS)
+    def draw_top_bar(self):
+        """Score on the left, wave in the middle, lives on the right, on a dark strip."""
+        bar = pygame.Surface((SCREEN_WIDTH, BAR_HEIGHT), pygame.SRCALPHA)
+        bar.fill(BAR_COLOUR)
+        self.screen.blit(bar, (0, 0))
+        middle_y = BAR_HEIGHT // 2
+        self.draw_text(f"SCORE  {self.player.score}", self.font, TEXT, midleft=(BAR_MARGIN, middle_y))
+        self.draw_text(f"WAVE  {self.wave}", self.font, ACCENT, center=(SCREEN_WIDTH // 2, middle_y))
 
-    def draw_text(self, text, font, colour, position):
-        """Draw text onto the game window."""
-        self.screen.blit(font.render(text, True, colour), position)
+        lives = self.player.lives
+        right = SCREEN_WIDTH - BAR_MARGIN
+        if lives > MAX_LIFE_ICONS:
+            label = self.draw_text(f"× {lives}", self.font, TEXT, midright=(right, middle_y))
+            self.screen.blit(self.life_icon, self.life_icon.get_rect(midright=(label.left - 6, middle_y)))
+        else:
+            for i in range(lives):
+                icon_right = right - i * (LIFE_ICON_SIZE[0] + 6)
+                self.screen.blit(self.life_icon, self.life_icon.get_rect(midright=(icon_right, middle_y)))
+
+    def draw_overlay(self):
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill(OVERLAY_COLOUR)
+        self.screen.blit(overlay, (0, 0))
+
+    def draw_panel(self, height, centre_y, width=440):
+        """A rounded box in the middle of the screen for text to sit on."""
+        panel = pygame.Surface((width, height), pygame.SRCALPHA)
+        pygame.draw.rect(panel, PANEL_COLOUR, panel.get_rect(), border_radius=PANEL_RADIUS)
+        pygame.draw.rect(panel, PANEL_BORDER, panel.get_rect(), width=2, border_radius=PANEL_RADIUS)
+        self.screen.blit(panel, panel.get_rect(center=(SCREEN_WIDTH // 2, centre_y)))
+
+    def draw_game_over(self):
+        """Once the explosion has played, show the score, high score and how to leave."""
+        if not self.can_leave():
+            return
+        middle = SCREEN_WIDTH // 2
+        self.draw_overlay()
+        self.draw_panel(height=360, centre_y=420)
+        self.draw_text("GAME OVER", self.big_font, WARNING, center=(middle, 300))
+        self.draw_text(f"Score  {self.player.score}", self.font, TEXT, center=(middle, 380))
+        best = max(self.high_score, self.player.score)
+        self.draw_text(f"High score  {best}", self.font, MUTED, center=(middle, 420))
+        if self.new_high_score:
+            self.draw_text("NEW HIGH SCORE!", self.font, GOLD, center=(middle, 480))
+        self.draw_text("Press SPACE to return to the menu", self.small_font, MUTED, center=(middle, 545))
+
+    def draw_text(self, text, font, colour, **position):
+        """Draw text placed by a rect position, e.g. center=(x, y). Returns where it was drawn."""
+        image = font.render(text, True, colour)
+        rect = image.get_rect(**position)
+        self.screen.blit(image, rect)
+        return rect
 
 
-def main():
-    """Play one game in a new window, close the window, and return the final score."""
+def main(high_score=0):
+    """Play one game in a new window, close the window, and return the final score.
+
+    high_score is the player's best score so far, shown on the start and game over screens.
+    """
     try:
-        return Game().run()
+        return Game(high_score).run()
     finally:
         pygame.quit()
 
