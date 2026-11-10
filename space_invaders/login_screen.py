@@ -87,7 +87,7 @@ class LoginScreen:
         self.root.title("Login: Space Invaders")
         self.root.geometry(MAIN_WINDOW_SIZE)
 
-        tk.Label(self.root, text="login system:", bg=HEADER_COLOUR,
+        tk.Label(self.root, text="Login system", bg=HEADER_COLOUR,
                  width=HEADER_WIDTH, height=HEADER_HEIGHT).pack()
         add_spacer(self.root)
         tk.Button(self.root, text="Login", command=self.open_login).pack()
@@ -107,13 +107,13 @@ class LoginScreen:
 
     def open_register(self):
         """Open the form for creating a new account."""
-        window = new_window(self.root, "register", REGISTER_WINDOW_SIZE)
+        window = new_window(self.root, "Register", REGISTER_WINDOW_SIZE)
         tk.Label(window, text="Enter details below:").pack()
         add_spacer(window)
-        username_entry = add_entry(window, "username")
-        password_entry = add_entry(window, "password", hidden=True)
-        question_entry = add_entry(window, "Security Question")
-        answer_entry = add_entry(window, "Security Answer")
+        username_entry = add_entry(window, "Username")
+        password_entry = add_entry(window, "Password", hidden=True)
+        question_entry = add_entry(window, "Security question")
+        answer_entry = add_entry(window, "Security answer")
         add_spacer(window)
         message = add_status_label(window)
 
@@ -145,8 +145,8 @@ class LoginScreen:
         window = new_window(self.root, "Login", LOGIN_WINDOW_SIZE)
         tk.Label(window, text="Enter details below:").pack()
         add_spacer(window)
-        username_entry = add_entry(window, "username")
-        password_entry = add_entry(window, "password", hidden=True)
+        username_entry = add_entry(window, "Username")
+        password_entry = add_entry(window, "Password", hidden=True)
         add_spacer(window)
         message = add_status_label(window)
 
@@ -172,7 +172,7 @@ class LoginScreen:
         username_window = new_window(self.root, title, SMALL_WINDOW_SIZE)
         tk.Label(username_window, text="Enter details below:").pack()
         add_spacer(username_window)
-        username_entry = add_entry(username_window, "username")
+        username_entry = add_entry(username_window, "Username")
         add_spacer(username_window)
         message = add_status_label(username_window)
 
@@ -183,7 +183,7 @@ class LoginScreen:
                 return
 
             question_window = new_window(self.root, title, SMALL_WINDOW_SIZE)
-            tk.Label(question_window, text="Answer the security Question:").pack()
+            tk.Label(question_window, text="Answer the security question:").pack()
             add_spacer(question_window)
             tk.Label(question_window, text=client.question).pack()
             answer_entry = tk.Entry(question_window)
@@ -207,13 +207,13 @@ class LoginScreen:
 
     def open_recover_password(self):
         """Show a user's password once they answer their security question."""
-        self.ask_security_question("recover password", "Recover password", self.show_password)
+        self.ask_security_question("Recover password", "Recover password", self.show_password)
 
     def show_password(self, clients, client):
         """Open a window showing the user's password."""
-        window = new_window(self.root, "recover password", SMALL_WINDOW_SIZE)
+        window = new_window(self.root, "Recover password", SMALL_WINDOW_SIZE)
         add_spacer(window)
-        tk.Label(window, text="This users password is:").pack()
+        tk.Label(window, text="This user's password is:").pack()
         tk.Label(window, text=client.password).pack()
 
     def open_change_password(self):
@@ -222,8 +222,8 @@ class LoginScreen:
 
     def enter_new_password(self, clients, client):
         """Open a window asking for a new password and save it to the client file."""
-        window = new_window(self.root, "change password", SMALL_WINDOW_SIZE)
-        password_entry = add_entry(window, "Enter new password:", hidden=True)
+        window = new_window(self.root, "Change password", SMALL_WINDOW_SIZE)
+        password_entry = add_entry(window, "New password", hidden=True)
         message = add_status_label(window)
 
         def set_new_password():
@@ -236,15 +236,15 @@ class LoginScreen:
             show_message(message, "Password changed", SUCCESS_COLOUR)
             clear(password_entry)
 
-        tk.Button(window, text="confirm change password", command=set_new_password).pack()
+        tk.Button(window, text="Save new password", command=set_new_password).pack()
 
     def open_delete_user(self):
         """Open the form for deleting an account (needs the right password)."""
         window = new_window(self.root, "Delete user", DELETE_WINDOW_SIZE)
         tk.Label(window, text="Enter details below:").pack()
         add_spacer(window)
-        username_entry = add_entry(window, "username")
-        password_entry = add_entry(window, "password", hidden=True)
+        username_entry = add_entry(window, "Username")
+        password_entry = add_entry(window, "Password", hidden=True)
         add_spacer(window)
         message = add_status_label(window)
 
@@ -252,7 +252,7 @@ class LoginScreen:
             clients, client = find_client(username_entry.get().strip())
             if client is not None and password_entry.get() == client.password:
                 clients.delete_client(client)
-                show_message(message, "Delete user success", SUCCESS_COLOUR)
+                show_message(message, "User deleted", SUCCESS_COLOUR)
             else:
                 show_message(message, "Wrong username or password")
             clear(username_entry, password_entry)

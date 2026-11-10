@@ -22,15 +22,17 @@ NAME_COLUMN_WIDTH = 20
 SCORE_COLUMN_WIDTH = 10
 LEADERBOARD_PADDING = 5
 
+_POINT_REWARDS = [reward for reward in game.MYSTERY_REWARDS if reward != game.EXTRA_LIFE]
 HOW_TO_PLAY = (
-    "1) Do NOT get hit by the enemies' bullets",
-    "2) YOU have 5 lives",
-    "3) YOU have infinite bullets (It works better holding down the spacebar)",
-    "4) AIM: KILL all the enemies",
-    "5) 10 points for every enemy killed",
-    "6) The SPECIAL enemy rewards either an extra life or 100-200 points",
-    "7) The game is INFINITE",
-    "8) MOST points win",
+    "1) Move with the LEFT and RIGHT arrow keys and shoot with SPACE",
+    "2) Do NOT get hit by the enemies' bullets",
+    f"3) YOU have {game.PLAYER_LIVES} lives",
+    "4) YOU have infinite bullets (it works best if you hold down SPACE)",
+    "5) AIM: KILL all the enemies",
+    f"6) {game.ALIEN_POINTS} points for every enemy killed",
+    f"7) The SPECIAL enemy gives either an extra life or {min(_POINT_REWARDS)}-{max(_POINT_REWARDS)} points",
+    "8) The game is INFINITE: a new wave arrives when you clear one",
+    "9) The MOST points wins. Press ESC to stop playing",
 )
 
 
@@ -109,7 +111,7 @@ class MenuScreen:
     def show_how_to_play(self):
         """Open a window with the rules of the game."""
         window = tk.Toplevel(self.root)
-        window.title("HOW TO PLAY")
+        window.title("How to play")
         window.geometry(HELP_WINDOW_SIZE)
 
         add_header(window, "HOW TO PLAY")

@@ -273,8 +273,11 @@ class Game:
         self.last_mystery_spawn = 0
 
     def run(self):
-        """Play until the window is closed, ESC is pressed, or SPACE is pressed after
-        game over. Returns the final score."""
+        """Run the game loop and return the final score.
+
+        The game ends when the window is closed, ESC is pressed, or SPACE is pressed
+        after game over.
+        """
         self.last_alien_shot = pygame.time.get_ticks()
         self.last_mystery_spawn = pygame.time.get_ticks()
 
