@@ -68,11 +68,14 @@ python -m pytest
 ## Project structure
 
 ```text
-main.py                  Starts the game at the login screen
+main.py                  Starts the game at the welcome screen
 space_invaders/
     accounts.py          Client and ClientList: accounts, hashing, sorting, searching, saving
-    login_screen.py      tkinter login, registration, password reset and account deletion
-    menu_screen.py       tkinter menu, how to play and leaderboard
+    app.py               The single tkinter window that switches between screens
+    theme.py             Dark space theme: colours, font, ttk styles, display scaling
+    widgets.py           Screen base class with shared form helpers
+    login_screen.py      Welcome, log in, register and reset password screens
+    menu_screen.py       Menu, leaderboard, how to play and delete account screens
     game.py              The pygame game
 assets/
     images/              Sprites and background
@@ -81,6 +84,7 @@ tools/
     make_explosions.py   Draws the explosion images
 tests/
     test_accounts.py     pytest tests for the account system
+    test_screens.py      pytest tests that drive the tkinter screens
 ```
 
 ## How passwords are stored

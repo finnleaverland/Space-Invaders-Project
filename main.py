@@ -1,5 +1,5 @@
-"""Start Space Invaders at the login screen."""
-from space_invaders import login_screen
+"""Start Space Invaders at the welcome screen."""
+from space_invaders import app
 
 if __name__ == "__main__":
-    login_screen.main()
+    app.main()
