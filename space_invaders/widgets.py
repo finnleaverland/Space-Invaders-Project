@@ -85,6 +85,17 @@ class Screen(ttk.Frame):
             self.password_fields.append(entry)
         return entry
 
+    def add_choice(self, label, choices, placeholder):
+        """Add a label and a drop-down list the player must pick from. Returns the list."""
+        ttk.Label(self.body, text=label, style="Muted.TLabel").pack(
+            fill="x", pady=(theme.px(theme.FIELD_GAP), 0))
+        choice = ttk.Combobox(self.body, values=choices, state="readonly")
+        choice.set(placeholder)
+        choice.pack(fill="x", pady=theme.px(theme.FIELD_GAP))
+        choice.bind("<<ComboboxSelected>>", lambda event: self.clear_message(), add="+")
+        self.fields.append(choice)
+        return choice
+
     def add_password_toggle(self, parent=None):
         """Add a "Show password" tick box that reveals every password box on the screen."""
         showing = tk.BooleanVar(value=False)

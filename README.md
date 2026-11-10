@@ -15,7 +15,10 @@ leaderboard.
 - **Mystery alien:** a special enemy crossing the top of the screen that gives a random
   reward: an extra life or 100, 150 or 200 points
 - **Player accounts:** register, log in, delete an account, and reset a forgotten password
-  by answering a security question
+  by answering a security question. New passwords need at least 8 characters and must be
+  typed twice, and the security question is picked from a list.
+- **Polished interface:** one dark-themed window that switches between screens, works with
+  the keyboard (Return, Escape, Tab), and stays sharp with Windows display scaling
 - **Secure password storage:** passwords and security answers are stored as salted
   PBKDF2-HMAC-SHA256 hashes (`hashlib`), never as plain text
 - **Leaderboard:** shows the top five players by highest score

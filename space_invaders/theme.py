@@ -109,7 +109,7 @@ def apply_theme(root):
     style.map("TEntry", bordercolor=[("focus", ACCENT)], lightcolor=[("focus", ACCENT)])
 
     style.configure("TCombobox", fieldbackground=SURFACE, background=SURFACE, foreground=TEXT,
-                    arrowcolor=TEXT, padding=px(6))
+                    arrowcolor=TEXT, arrowsize=px(12), padding=px(6))
     style.map("TCombobox",
               fieldbackground=[("readonly", SURFACE)], foreground=[("readonly", TEXT)],
               selectbackground=[("readonly", SURFACE)], selectforeground=[("readonly", TEXT)],

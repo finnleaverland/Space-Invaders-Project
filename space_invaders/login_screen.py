@@ -3,9 +3,16 @@ from tkinter import ttk
 
 from . import theme
 from .accounts import Client, ClientList
+from .validation import (
+    MAX_USERNAME_LENGTH,
+    MIN_PASSWORD_LENGTH,
+    SECURITY_QUESTIONS,
+    check_new_password,
+    check_registration,
+)
 from .widgets import Screen
 
-MAX_USERNAME_LENGTH = 10
+QUESTION_PLACEHOLDER = "Choose a question…"
 
 
 def find_client(username):
@@ -64,10 +71,13 @@ class RegisterScreen(Screen):
     def build(self):
         self.add_title("Create account")
         self.username_entry = self.add_field(f"Username (up to {MAX_USERNAME_LENGTH} characters)")
-        self.password_entry = self.add_field("Password", hidden=True)
+        self.password_entry = self.add_field(f"Password (at least {MIN_PASSWORD_LENGTH} characters)",
+                                             hidden=True)
+        self.confirm_entry = self.add_field("Confirm password", hidden=True)
         self.add_password_toggle()
-        self.question_entry = self.add_field("Security question")
-        self.answer_entry = self.add_field("Security answer")
+        self.question_choice = self.add_choice("Security question", SECURITY_QUESTIONS,
+                                               QUESTION_PLACEHOLDER)
+        self.answer_entry = self.add_field("Answer")
         self.add_button("Create account", self.submit, primary=True)
         self.add_message_line()
         self.add_back_button(lambda: self.app.show("welcome"))
@@ -76,23 +86,20 @@ class RegisterScreen(Screen):
     def submit(self):
         username = self.username_entry.get().strip()
         password = self.password_entry.get()
-        question = self.question_entry.get().strip()
+        question = self.question_choice.get()
         answer = self.answer_entry.get().strip()
 
-        if len(username) == 0 or len(username) > MAX_USERNAME_LENGTH:
-            self.show_error(f"Username must be 1 to {MAX_USERNAME_LENGTH} characters")
-        elif len(password) == 0 or len(question) == 0 or len(answer) == 0:
-            self.show_error("Please fill in every box")
-        elif "," in username + password + question + answer:
-            self.show_error("Please don't use commas")
-        else:
+        problem = check_registration(username, password, self.confirm_entry.get(), question, answer)
+        if problem is None:
             clients, existing = find_client(username)
             if existing is not None:
-                self.show_error("That username is already taken")
-                return
-            new_client = Client.new(username, password, question, answer)
-            clients.add_client(new_client)
-            self.app.log_in(new_client)
+                problem = "That username is already taken"
+        if problem is not None:
+            self.show_error(problem)
+            return
+        new_client = Client.new(username, password, question, answer)
+        clients.add_client(new_client)
+        self.app.log_in(new_client)
 
 
 class ResetPasswordScreen(Screen):
@@ -115,7 +122,9 @@ class ResetPasswordScreen(Screen):
                                         justify="center")
         self.question_label.pack(pady=(theme.px(theme.GAP), 0))
         self.answer_entry = self.add_field("Answer", parent=self.step_two)
-        self.password_entry = self.add_field("New password", hidden=True, parent=self.step_two)
+        self.password_entry = self.add_field(f"New password (at least {MIN_PASSWORD_LENGTH} characters)",
+                                             hidden=True, parent=self.step_two)
+        self.confirm_entry = self.add_field("Confirm new password", hidden=True, parent=self.step_two)
         self.add_password_toggle(parent=self.step_two)
         self.add_button("Save new password", self.submit, primary=True, parent=self.step_two)
 
@@ -138,11 +147,12 @@ class ResetPasswordScreen(Screen):
 
     def submit(self):
         new_password = self.password_entry.get()
+        problem = check_new_password(new_password, self.confirm_entry.get())
         if not self.client.check_answer(self.answer_entry.get()):
             self.show_error("Wrong answer, try again")
             self.answer_entry.focus_set()
-        elif len(new_password) == 0 or "," in new_password:
-            self.show_error("Enter a password (no commas)")
+        elif problem is not None:
+            self.show_error(problem)
             self.password_entry.focus_set()
         else:
             self.client.set_password(new_password)

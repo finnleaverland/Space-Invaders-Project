@@ -11,6 +11,7 @@ import pytest
 from space_invaders import accounts, game, theme
 from space_invaders import app as app_module
 from space_invaders.accounts import Client, ClientList
+from space_invaders.validation import SECURITY_QUESTIONS
 
 
 @pytest.fixture(scope="session")
@@ -49,6 +50,7 @@ def accounts_file(tmp_path, monkeypatch):
     alice.highest_score = 50
     clients.add_client(alice)
     clients.add_client(Client.new("carol", "carol-pass", "Home town?", "Leeds"))
+    clients.add_client(Client.new("dan", "abc", "Old free-text question?", "yes"))  # pre-1c account
     return path
 
 
@@ -139,8 +141,10 @@ def test_keys_are_bound_to_the_screen_handlers(app):
     bound = app.root.bind()
     assert {"<Key-Return>", "<Key-KP_Enter>", "<Key-Escape>"} <= set(bound)
     click(app, "Register")
-    for entry in app.screen.fields:
-        assert "<Key>" in entry.bind()
+    for field in app.screen.fields:
+        # typing clears errors; the read-only question list clears them when a choice is made
+        expected = "<<ComboboxSelected>>" if isinstance(field, ttk.Combobox) else "<Key>"
+        assert expected in field.bind()
 
 
 def test_cursor_starts_in_the_first_box(app):
@@ -236,11 +240,14 @@ def test_log_in_with_wrong_password(app):
 
 # --- Registering ------------------------------------------------------------------
 
-def register(app, username="bob", password="bob-pass", question="Colour?", answer="blue"):
+def register(app, username="bob", password="bob-pass", confirm=None,
+             question=SECURITY_QUESTIONS[0], answer="blue"):
     click(app, "Register")
     type_into(app.screen.username_entry, username)
     type_into(app.screen.password_entry, password)
-    type_into(app.screen.question_entry, question)
+    type_into(app.screen.confirm_entry, password if confirm is None else confirm)
+    if question is not None:
+        app.screen.question_choice.set(question)
     type_into(app.screen.answer_entry, answer)
     click(app, "Create account")
 
@@ -256,6 +263,28 @@ def test_register_rejects_taken_username(app):
     assert message(app) == "That username is already taken"
 
 
+def test_register_checks_the_passwords_match(app):
+    register(app, confirm="bob-pas")
+    assert message(app) == "The passwords don't match"
+
+
+def test_register_needs_a_long_enough_password(app):
+    register(app, password="short")
+    assert message(app) == "Password must be at least 8 characters"
+
+
+def test_register_needs_a_question_from_the_list(app):
+    register(app, question=None)
+    assert message(app) == "Choose a security question"
+    assert list(app.screen.question_choice.cget("values")) == list(SECURITY_QUESTIONS)
+    assert str(app.screen.question_choice.cget("state")) == "readonly"
+
+
+def test_old_accounts_with_short_passwords_can_still_log_in(app):
+    log_in(app, username="dan", password="abc")
+    assert screen_name(app) == "MenuScreen"
+
+
 # --- Resetting a password -----------------------------------------------------------
 
 def test_reset_password(app):
@@ -265,6 +294,7 @@ def test_reset_password(app):
     assert app.screen.question_label.cget("text") == "First pet?"
     type_into(app.screen.answer_entry, "  REX ")
     type_into(app.screen.password_entry, "new-password")
+    type_into(app.screen.confirm_entry, "new-password")
     click(app, "Save new password")
 
     assert screen_name(app) == "LoginScreen"
@@ -284,8 +314,24 @@ def test_reset_password_unknown_user_and_wrong_answer(app):
     click(app, "Next")
     type_into(app.screen.answer_entry, "Max")
     type_into(app.screen.password_entry, "new-password")
+    type_into(app.screen.confirm_entry, "new-password")
     click(app, "Save new password")
     assert message(app) == "Wrong answer, try again"
+
+
+def test_reset_password_uses_the_new_password_rules(app):
+    click(app, "Reset password")
+    type_into(app.screen.username_entry, "alice")
+    click(app, "Next")
+    type_into(app.screen.answer_entry, "rex")
+    type_into(app.screen.password_entry, "short")
+    type_into(app.screen.confirm_entry, "short")
+    click(app, "Save new password")
+    assert message(app) == "Password must be at least 8 characters"
+    type_into(app.screen.password_entry, "new-password")
+    type_into(app.screen.confirm_entry, "new-passwrd")
+    click(app, "Save new password")
+    assert message(app) == "The passwords don't match"
 
 
 # --- The menu -----------------------------------------------------------------------
