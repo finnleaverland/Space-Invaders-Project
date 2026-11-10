@@ -12,7 +12,7 @@ _POINT_REWARDS = [reward for reward in game.MYSTERY_REWARDS if reward != game.EX
 HOW_TO_PLAY = (
     "Move with the LEFT and RIGHT arrow keys and shoot with SPACE",
     "Do NOT get hit by the enemies' bullets",
-    f"You have {game.PLAYER_LIVES} lives",
+    f"You have {game.PLAYER_LIVES} lives. After losing one, your ship blinks and can't be hit for a moment",
     "You have infinite bullets (it works best if you hold down SPACE)",
     "Aim: destroy all the enemies",
     f"{game.ALIEN_POINTS} points for every enemy destroyed",

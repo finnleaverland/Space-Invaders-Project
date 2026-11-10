@@ -38,6 +38,11 @@ def start(game):
     game.step(NO_KEYS)
 
 
+def hold_fire(game):
+    """Stop the aliens shooting, so a stray bullet can't change the result of a test."""
+    game.last_alien_shot = float("inf")
+
+
 def kill_player(game):
     game.player.lives = 1
     game.player.hit()
@@ -225,3 +230,78 @@ def test_new_waves_start_at_the_top(game):
     game.alien_group.empty()
     game.step(NO_KEYS)
     assert min(y for _, y in alien_positions(game)) == min(y for _, y in first_wave)
+
+
+# --- Explosions and invincibility --------------------------------------------------------
+
+def test_explosions_play_through_their_pictures_then_disappear(game):
+    name, size, hold = game_module.ALIEN_EXPLOSION
+    explosion = game_module.Explosion(game, (100, 100), name, size, hold)
+    pictures = game.animations[name]
+    assert len(pictures) == 8
+    assert all(picture.get_size() == (size, size) for picture in pictures)
+    seen = [explosion.image]
+    group = pygame.sprite.Group(explosion)
+    for _ in range(len(pictures) * hold - 1):
+        group.update()
+        if explosion.image is not seen[-1]:
+            seen.append(explosion.image)
+    assert seen == pictures  # every picture, in order
+    assert explosion.alive()
+    group.update()
+    assert not explosion.alive()
+
+
+def test_player_explosion_lasts_longer_than_an_alien_explosion(game):
+    def length(animation):
+        name, _, hold = animation
+        return len(game.animations[name]) * hold
+    assert length(game_module.PLAYER_EXPLOSION) > length(game_module.ALIEN_EXPLOSION)
+
+
+def test_a_hit_makes_the_ship_invincible_for_a_moment(game):
+    start(game)
+    hold_fire(game)
+    game.player.hit()
+    assert game.player.lives == game_module.PLAYER_LIVES - 1
+    assert game.player.invincible
+    game.player.hit()  # a second bullet straight away does nothing
+    assert game.player.lives == game_module.PLAYER_LIVES - 1
+    run_frames(game, int(game_module.INVINCIBLE_TIME / game_module.FRAME_MS) + 1)
+    assert not game.player.invincible
+    game.player.hit()
+    assert game.player.lives == game_module.PLAYER_LIVES - 2
+
+
+def test_alien_bullets_pass_through_an_invincible_ship(game):
+    start(game)
+    game.player.hit()
+    bullet = game_module.AlienBullet(game, *game.player.rect.center)
+    game.alien_bullet_group.add(bullet)
+    game.alien_bullet_group.update()
+    assert bullet.alive()
+    assert game.player.lives == game_module.PLAYER_LIVES - 1
+
+
+def test_the_ship_blinks_while_invincible(game):
+    start(game)
+    hold_fire(game)
+    assert game.player_visible()
+    game.player.hit()
+    visibility = set()
+    for _ in range(30):
+        game.step(NO_KEYS)
+        visibility.add(game.player_visible())
+    assert visibility == {True, False}
+    run_frames(game, 120)
+    assert game.player_visible()
+
+
+def test_alien_explosions_are_centred_on_the_alien(game):
+    start(game)
+    alien = game.alien_group.sprites()[0]
+    bullet = game_module.Bullet(game, alien.rect.centerx, alien.rect.bottom + 2)
+    game.bullet_group.add(bullet)
+    game.bullet_group.update()
+    explosion = game.alien_explosion_group.sprites()[0]
+    assert explosion.rect.center == alien.rect.center

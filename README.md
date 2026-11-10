@@ -16,6 +16,7 @@ leaderboard.
   every wave cleared
 - **Game screens:** a start screen, pause (P), a readable top bar with score, wave and lives,
   and a game-over screen showing your score, your high score and whether you beat it
+- **Effects:** animated explosions, and a short blinking invincibility after losing a life
 - **Mystery alien:** a special enemy crossing the top of the screen that gives a random
   reward: an extra life or 100, 150 or 200 points
 - **Player accounts:** register, log in, delete an account, and reset a forgotten password
@@ -91,7 +92,7 @@ assets/
     images/              Sprites and background
     sounds/              Sound effects
 tools/
-    make_explosions.py   Draws the explosion images
+    make_explosions.py   Draws the explosion animations
 tests/
     test_accounts.py     pytest tests for the account system
     test_screens.py      pytest tests that drive the tkinter screens
@@ -113,8 +114,8 @@ which stored plain text, are upgraded to hashes automatically the first time the
   [CC0](https://creativecommons.org/publicdomain/zero/1.0/)
 - Sound effects: [Sci-fi Sounds](https://kenney.nl/assets/sci-fi-sounds) by
   [Kenney](https://kenney.nl), released under CC0
-- Explosion images: drawn by [`tools/make_explosions.py`](tools/make_explosions.py) in this
-  project
+- Explosion animations: drawn by [`tools/make_explosions.py`](tools/make_explosions.py) in
+  this project
 - The original game was built while following the
   [Coding With Russ Space Invaders tutorial](https://github.com/russs123/Space_Invaders)
 

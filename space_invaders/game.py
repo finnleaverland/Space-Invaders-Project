@@ -91,8 +91,14 @@ EXTRA_LIFE = "extra life"
 MYSTERY_REWARDS = (EXTRA_LIFE, 100, 150, 200)  # one is picked at random
 
 # Explosions: which image to show and for how many frames
-ALIEN_EXPLOSION = ("explosion1.png", 10)
-PLAYER_EXPLOSION = ("explosion2.png", 5)
+# Explosions are strips of square frames drawn by tools/make_explosions.py:
+# (image, frame size in pixels, game frames each picture is shown for)
+ALIEN_EXPLOSION = ("explosion1.png", 40, 3)  # 8 pictures x 3 = 0.4 seconds
+PLAYER_EXPLOSION = ("explosion2.png", 80, 5)  # 10 pictures x 5 = about 0.8 seconds
+
+# After losing a life the ship blinks and can't be hit for a moment
+INVINCIBLE_TIME = 1500  # ms
+BLINK_INTERVAL = 100  # ms the ship spends visible, then hidden, while blinking
 
 SPRITE_IMAGES = ALIEN_IMAGES + (
     "spaceship.png", "bullet.png", "alien_bullet.png", "mysteryalien.png",
@@ -121,6 +127,11 @@ class Player(pygame.sprite.Sprite):
         self.frame_count = 0
         self.score = 0
         self.lives = PLAYER_LIVES
+        self.invincible_until = 0.0  # game time when the invincibility after a hit runs out
+
+    @property
+    def invincible(self):
+        return self.game.time < self.invincible_until
 
     def update(self, pressed_keys):
         """Move and shoot based on the keys being held down."""
@@ -147,12 +158,18 @@ class Player(pygame.sprite.Sprite):
             self.rect.right = SCREEN_WIDTH
 
     def hit(self):
-        """Lose a life after being hit by an alien bullet, and explode on the last one."""
-        if self.lives <= 0:
+        """Lose a life after being hit by an alien bullet, and explode on the last one.
+
+        Losing a life makes the ship invincible for a moment, so one burst of bullets
+        can't take several lives at once.
+        """
+        if self.lives <= 0 or self.invincible:
             return
         self.lives -= 1
         if self.lives <= 0:
             self.destroy()
+        else:
+            self.invincible_until = self.game.time + INVINCIBLE_TIME
 
     def destroy(self):
         """Blow up the ship and end the game (out of lives, or the aliens have landed)."""
@@ -177,11 +194,12 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.y -= BULLET_SPEED
         if self.rect.bottom < 0:
             self.kill()
-        if pygame.sprite.spritecollide(self, self.game.alien_group, True):
+        hit_aliens = pygame.sprite.spritecollide(self, self.game.alien_group, True)
+        if hit_aliens:
             self.game.player.score += ALIEN_POINTS
             self.kill()
             self.game.explosion_sound.play()
-            explosion = Explosion(self.game, self.rect.center, *ALIEN_EXPLOSION)
+            explosion = Explosion(self.game, hit_aliens[0].rect.center, *ALIEN_EXPLOSION)
             self.game.alien_explosion_group.add(explosion)
 
 
@@ -214,9 +232,10 @@ class AlienBullet(pygame.sprite.Sprite):
         self.rect.y += ALIEN_BULLET_SPEED
         if self.rect.top > SCREEN_HEIGHT:
             self.kill()
-        if pygame.sprite.spritecollide(self, self.game.player_group, False):
+        player = self.game.player
+        if not player.invincible and pygame.sprite.spritecollide(self, self.game.player_group, False):
             self.kill()
-            self.game.player.hit()
+            player.hit()
 
 
 class MysteryAlien(pygame.sprite.Sprite):
@@ -249,19 +268,30 @@ class MysteryAlien(pygame.sprite.Sprite):
 
 
 class Explosion(pygame.sprite.Sprite):
-    """An explosion image that stays on screen for a set number of frames."""
+    """An animated explosion that plays through its pictures once and then disappears."""
 
-    def __init__(self, game, center, image_name, frames):
+    def __init__(self, game, center, image_name, frame_size, hold):
         super().__init__()
-        self.image = game.images[image_name]
+        self.pictures = game.animations[image_name]
+        self.hold = hold  # game frames each picture stays on screen
+        self.age = 0
+        self.image = self.pictures[0]
         self.rect = self.image.get_rect(center=center)
-        self.frames_left = frames
 
     def update(self):
-        """Count down and remove the explosion when its time is up."""
-        self.frames_left -= 1
-        if self.frames_left <= 0:
+        """Move on to the next picture when it's time, and disappear after the last one."""
+        self.age += 1
+        index = self.age // self.hold
+        if index >= len(self.pictures):
             self.kill()
+        else:
+            self.image = self.pictures[index]
+
+
+def split_strip(strip, frame_size):
+    """Cut a horizontal strip of square pictures into a list of separate pictures."""
+    return [strip.subsurface((x, 0, frame_size, frame_size))
+            for x in range(0, strip.get_width(), frame_size)]
 
 
 class Game:
@@ -280,6 +310,8 @@ class Game:
         self.background = pygame.image.load(image_path("background.png")).convert()
         self.images = {name: pygame.image.load(image_path(name)).convert_alpha()
                        for name in SPRITE_IMAGES}
+        self.animations = {name: split_strip(self.images[name], size)
+                           for name, size, _ in (ALIEN_EXPLOSION, PLAYER_EXPLOSION)}
         self.life_icon = pygame.transform.smoothscale(self.images["spaceship.png"], LIFE_ICON_SIZE)
         self.small_font = pygame.font.SysFont(FONT_NAMES, SMALL_FONT_SIZE)
         self.font = pygame.font.SysFont(FONT_NAMES, FONT_SIZE, bold=True)
@@ -441,9 +473,11 @@ class Game:
         if self.state == READY:
             self.draw_start_screen()
             return
-        for group in (self.player_group, self.bullet_group, self.alien_group,
-                      self.alien_bullet_group, self.alien_explosion_group,
-                      self.player_explosion_group, self.mystery_alien_group):
+        if self.player_visible():
+            self.player_group.draw(self.screen)
+        for group in (self.bullet_group, self.alien_group, self.alien_bullet_group,
+                      self.alien_explosion_group, self.player_explosion_group,
+                      self.mystery_alien_group):
             group.draw(self.screen)
         self.draw_top_bar()
         if self.state == PAUSED:
@@ -454,6 +488,10 @@ class Game:
                            center=(SCREEN_WIDTH // 2, 430))
         elif self.state == GAME_OVER:
             self.draw_game_over()
+
+    def player_visible(self):
+        """The ship blinks while it's invincible after a hit."""
+        return not self.player.invincible or int(self.time // BLINK_INTERVAL) % 2 == 0
 
     def draw_start_screen(self):
         middle = SCREEN_WIDTH // 2

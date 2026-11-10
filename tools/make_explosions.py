@@ -1,7 +1,9 @@
-"""Draw the explosion sprites (assets/images/explosion1.png and explosion2.png).
+"""Draw the explosion animations (assets/images/explosion1.png and explosion2.png).
 
-The explosions are generated rather than downloaded, so they are original artwork
-covered by this project's licence. Run from the project folder:
+Each file is a horizontal strip of square frames: the burst grows, its colours cool from
+white-hot to orange, and then it fades away. The explosions are generated rather than
+downloaded, so they are original artwork covered by this project's licence.
+Run from the project folder:
 
     python tools/make_explosions.py
 """
@@ -15,16 +17,18 @@ import pygame  # noqa: E402
 IMAGE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "images")
 
 SUPERSAMPLE = 4  # draw larger, then scale down for smooth edges
-OUTER = (235, 90, 30)
-MIDDLE = (255, 170, 40)
-INNER = (255, 235, 120)
-CORE = (255, 255, 235)
+HOT = ((255, 255, 235), (255, 235, 120), (255, 170, 40), (235, 90, 30))  # core to edge, when new
+COOL = ((255, 210, 120), (255, 150, 40), (220, 80, 30), (150, 40, 30))  # core to edge, at the end
 
-# (file name, size in pixels, random seed)
+# (file name, frame size in pixels, number of frames, random seed)
 EXPLOSIONS = [
-    ("explosion1.png", 40, 1),  # alien explosion
-    ("explosion2.png", 80, 2),  # player explosion
+    ("explosion1.png", 40, 8, 1),  # alien explosion
+    ("explosion2.png", 80, 10, 2),  # player explosion
 ]
+
+
+def mix(colour_a, colour_b, amount):
+    return tuple(round(a + (b - a) * amount) for a, b in zip(colour_a, colour_b))
 
 
 def starburst(rng, centre, radius, points, spikiness):
@@ -38,33 +42,48 @@ def starburst(rng, centre, radius, points, spikiness):
     return corners
 
 
-def draw_explosion(size, seed):
-    """Return a transparent surface with an explosion drawn on it."""
-    rng = random.Random(seed)
+def draw_frame(size, seed, progress):
+    """One frame of an explosion. progress goes from 0 (just started) to 1 (finished)."""
+    rng = random.Random(seed)  # the same seed every frame keeps the shape steady as it grows
     big = size * SUPERSAMPLE
     centre = big / 2
-    radius = big / 2 - SUPERSAMPLE
+    full_radius = big / 2 - SUPERSAMPLE
+    growth = 0.35 + 0.65 * min(1.0, progress * 2.2)
+    radius = full_radius * growth
+    core, inner, middle, outer = (mix(hot, cool, progress) for hot, cool in zip(HOT, COOL))
     surface = pygame.Surface((big, big), pygame.SRCALPHA)
 
-    for _ in range(6):  # flying sparks around the edge
+    for _ in range(6):  # sparks fly outwards as it grows
         angle = rng.uniform(0, 2 * math.pi)
-        distance = radius * rng.uniform(0.75, 0.92)
+        distance = full_radius * rng.uniform(0.55, 0.92) * min(1.0, 0.4 + progress * 1.2)
         spark = (centre + distance * math.cos(angle), centre + distance * math.sin(angle))
-        pygame.draw.circle(surface, MIDDLE, spark, radius * rng.uniform(0.05, 0.09))
+        pygame.draw.circle(surface, middle, spark, full_radius * rng.uniform(0.04, 0.08))
 
-    pygame.draw.polygon(surface, OUTER, starburst(rng, centre, radius * 0.85, 9, 0.45))
-    pygame.draw.polygon(surface, MIDDLE, starburst(rng, centre, radius * 0.62, 8, 0.35))
-    pygame.draw.polygon(surface, INNER, starburst(rng, centre, radius * 0.4, 7, 0.25))
-    pygame.draw.circle(surface, CORE, (centre, centre), radius * 0.18)
+    pygame.draw.polygon(surface, outer, starburst(rng, centre, radius * 0.85, 9, 0.45))
+    pygame.draw.polygon(surface, middle, starburst(rng, centre, radius * 0.62, 8, 0.35))
+    pygame.draw.polygon(surface, inner, starburst(rng, centre, radius * 0.4, 7, 0.25))
+    if progress < 0.7:  # the white-hot core burns out
+        pygame.draw.circle(surface, core, (centre, centre), radius * 0.18 * (1 - progress))
+
+    fade = 1.0 if progress < 0.45 else max(0.0, 1 - (progress - 0.45) / 0.55)
+    surface.fill((255, 255, 255, round(255 * fade)), special_flags=pygame.BLEND_RGBA_MULT)
     return pygame.transform.smoothscale(surface, (size, size))
+
+
+def draw_strip(size, frames, seed):
+    """All the frames of one explosion, side by side."""
+    strip = pygame.Surface((size * frames, size), pygame.SRCALPHA)
+    for i in range(frames):
+        strip.blit(draw_frame(size, seed, i / (frames - 1)), (i * size, 0))
+    return strip
 
 
 def main():
     pygame.init()
-    for file_name, size, seed in EXPLOSIONS:
+    for file_name, size, frames, seed in EXPLOSIONS:
         path = os.path.join(IMAGE_DIR, file_name)
-        pygame.image.save(draw_explosion(size, seed), path)
-        print(f"saved {path} ({size}x{size})")
+        pygame.image.save(draw_strip(size, frames, seed), path)
+        print(f"saved {path} ({frames} frames of {size}x{size})")
 
 
 if __name__ == "__main__":
