@@ -71,8 +71,14 @@ ALIEN_GRID_LEFT = 100
 ALIEN_GRID_TOP = 150
 ALIEN_SPACING_X = 100
 ALIEN_SPACING_Y = 70
-ALIEN_MOVE_RANGE = 70  # pixels either side of where each alien starts
-ALIEN_SHOT_COOLDOWN = 1000  # milliseconds between alien shots
+ALIEN_START_SPEED = 1.0  # pixels per frame the formation moves sideways in wave 1
+ALIEN_MAX_SPEED = 3.0
+ALIEN_STEP_DOWN = 12  # pixels the formation drops each time it reaches the edge
+FORMATION_EDGE = 10  # how close to the side of the screen the formation gets
+ALIEN_SHOT_COOLDOWN = 1000  # milliseconds between alien shots in wave 1
+ALIEN_MIN_SHOT_COOLDOWN = 350
+WAVE_SPEED_UP = 0.15  # each wave the aliens move 15% faster...
+WAVE_SHOT_SPEED_UP = 0.10  # ...and fire 10% more often
 ALIEN_BULLET_SPEED = 3  # pixels per frame, downwards
 ALIEN_POINTS = 10
 WAVE_BONUS = 100  # points for clearing a wave (not given for the first wave)
@@ -146,11 +152,15 @@ class Player(pygame.sprite.Sprite):
             return
         self.lives -= 1
         if self.lives <= 0:
-            self.lives = 0
-            self.game.player_death_sound.play()
-            explosion = Explosion(self.game, self.rect.center, *PLAYER_EXPLOSION)
-            self.game.player_explosion_group.add(explosion)
-            self.kill()
+            self.destroy()
+
+    def destroy(self):
+        """Blow up the ship and end the game (out of lives, or the aliens have landed)."""
+        self.lives = 0
+        self.game.player_death_sound.play()
+        explosion = Explosion(self.game, self.rect.center, *PLAYER_EXPLOSION)
+        self.game.player_explosion_group.add(explosion)
+        self.kill()
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -176,21 +186,18 @@ class Bullet(pygame.sprite.Sprite):
 
 
 class Alien(pygame.sprite.Sprite):
-    """An ordinary alien. It sways left and right around where it started."""
+    """An ordinary alien. The Game moves all of them together as one formation."""
 
     def __init__(self, game, x, y):
         super().__init__()
         self.image = game.images[random.choice(ALIEN_IMAGES)]
         self.rect = self.image.get_rect(center=(x, y))
-        self.move_counter = 0  # how far the alien is from where it started
-        self.move_direction = 1
+        self.x = float(self.rect.x)  # exact position, as speeds aren't whole pixels
 
-    def update(self):
-        """Move 1 pixel, turning round ALIEN_MOVE_RANGE pixels either side of the start."""
-        self.rect.x += self.move_direction
-        self.move_counter += self.move_direction
-        if abs(self.move_counter) >= ALIEN_MOVE_RANGE:
-            self.move_direction *= -1
+    def move(self, dx, dy=0):
+        self.x += dx
+        self.rect.x = round(self.x)
+        self.rect.y += dy
 
 
 class AlienBullet(pygame.sprite.Sprite):
@@ -297,6 +304,7 @@ class Game:
         self.running = True
         self.time = 0.0  # game time in ms; only moves forward while playing
         self.wave = 0
+        self.formation_direction = 1  # 1 = moving right, -1 = moving left
         self.last_alien_shot = 0.0
         self.last_mystery_spawn = 0.0
         self.died_at = None
@@ -304,6 +312,17 @@ class Game:
     @property
     def new_high_score(self):
         return self.player.score > self.high_score
+
+    @property
+    def alien_speed(self):
+        """How fast the formation moves this wave (pixels per frame)."""
+        return min(ALIEN_MAX_SPEED, ALIEN_START_SPEED * (1 + WAVE_SPEED_UP) ** (self.wave - 1))
+
+    @property
+    def alien_shot_cooldown(self):
+        """Time between alien shots this wave (ms)."""
+        cooldown = ALIEN_SHOT_COOLDOWN * (1 - WAVE_SHOT_SPEED_UP) ** (self.wave - 1)
+        return max(ALIEN_MIN_SHOT_COOLDOWN, cooldown)
 
     def run(self):
         """Run the game loop until the player leaves, and return the final score."""
@@ -366,7 +385,7 @@ class Game:
             self.wave += 1
             self.create_aliens()
 
-        if self.player.lives > 0 and self.time - self.last_alien_shot > ALIEN_SHOT_COOLDOWN:
+        if self.player.lives > 0 and self.time - self.last_alien_shot > self.alien_shot_cooldown:
             shooter = random.choice(self.alien_group.sprites())
             self.alien_bullet_group.add(AlienBullet(self, shooter.rect.centerx, shooter.rect.bottom))
             self.laser_sound.play()
@@ -374,6 +393,7 @@ class Game:
 
     def create_aliens(self):
         """Fill the grid with a new wave of aliens."""
+        self.formation_direction = 1
         for row in range(ALIEN_ROWS):
             for column in range(ALIEN_COLUMNS):
                 x = ALIEN_GRID_LEFT + column * ALIEN_SPACING_X
@@ -384,11 +404,34 @@ class Game:
         """Move every sprite one frame."""
         self.player.update(pressed_keys)
         self.bullet_group.update()
-        self.alien_group.update()
+        self.move_formation()
         self.alien_bullet_group.update()
         self.alien_explosion_group.update()
         self.player_explosion_group.update()
         self.mystery_alien_group.update()
+
+    def move_formation(self):
+        """Slide the aliens sideways together; at the edge, drop down a step and turn round.
+
+        If they get down to the player's ship, it's game over.
+        """
+        aliens = self.alien_group.sprites()
+        if not aliens:
+            return
+        dx = self.formation_direction * self.alien_speed
+        left = min(alien.x for alien in aliens) + dx
+        right = max(alien.x + alien.rect.width for alien in aliens) + dx
+        if left < FORMATION_EDGE or right > SCREEN_WIDTH - FORMATION_EDGE:
+            self.formation_direction *= -1
+            for alien in aliens:
+                alien.move(0, ALIEN_STEP_DOWN)
+        else:
+            for alien in aliens:
+                alien.move(dx)
+
+        landing_line = PLAYER_START_POS[1] - self.player.rect.height // 2
+        if self.player.lives > 0 and max(alien.rect.bottom for alien in aliens) >= landing_line:
+            self.player.destroy()
 
     # --- Drawing -----------------------------------------------------------------------
 

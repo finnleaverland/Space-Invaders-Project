@@ -10,8 +10,10 @@ leaderboard.
 
 ## Features
 
-- **Arcade gameplay:** waves of aliens that sway and shoot back, five lives, and endless
-  waves with a bonus for every wave cleared
+- **Arcade gameplay:** the aliens move as one formation that drops down a step each time it
+  reaches the edge, and shoot back. You have five lives, and the game ends early if the
+  aliens reach your ship. Waves are endless, each one faster than the last, with a bonus for
+  every wave cleared
 - **Game screens:** a start screen, pause (P), a readable top bar with score, wave and lives,
   and a game-over screen showing your score, your high score and whether you beat it
 - **Mystery alien:** a special enemy crossing the top of the screen that gives a random

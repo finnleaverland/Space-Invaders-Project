@@ -157,3 +157,71 @@ def test_lives_above_five_are_shown_as_a_number(game):
     start(game)
     game.player.lives = 8
     game.draw()  # must not draw eight icons over the wave number
+
+
+# --- Waves and the alien formation -----------------------------------------------------
+
+def alien_positions(game):
+    return sorted((alien.x, alien.rect.y) for alien in game.alien_group)
+
+
+def test_the_aliens_move_together(game):
+    start(game)
+    before = alien_positions(game)
+    game.move_formation()
+    after = alien_positions(game)
+    moves = {round(a[0] - b[0], 6) for a, b in zip(after, before)}
+    assert moves == {game.alien_speed}
+    assert [a[1] for a in after] == [b[1] for b in before]
+
+
+def test_at_the_edge_the_formation_steps_down_and_turns_round(game):
+    start(game)
+    rightmost = max(alien.rect.right for alien in game.alien_group)
+    for alien in game.alien_group:  # push the formation right up to the edge
+        alien.move(game_module.SCREEN_WIDTH - game_module.FORMATION_EDGE - rightmost)
+    before = alien_positions(game)
+    game.move_formation()
+    after = alien_positions(game)
+    assert game.formation_direction == -1
+    assert [a[1] - b[1] for a, b in zip(after, before)] == [game_module.ALIEN_STEP_DOWN] * len(before)
+    assert [a[0] for a in after] == [b[0] for b in before]
+
+
+def test_aliens_reaching_the_player_end_the_game(game):
+    start(game)
+    lowest = max(alien.rect.bottom for alien in game.alien_group)
+    for alien in game.alien_group:
+        alien.move(0, game.player.rect.top - lowest)
+    game.step(NO_KEYS)
+    assert game.player.lives == 0
+    assert game.state == GAME_OVER
+
+
+def test_clearing_a_wave_brings_a_faster_one(game):
+    start(game)
+    speed, cooldown = game.alien_speed, game.alien_shot_cooldown
+    score = game.player.score
+    game.alien_group.empty()
+    game.step(NO_KEYS)
+    assert game.wave == 2
+    assert game.player.score == score + game_module.WAVE_BONUS
+    assert game.alien_speed == pytest.approx(speed * 1.15)
+    assert game.alien_shot_cooldown == pytest.approx(cooldown * 0.9)
+    assert len(game.alien_group) == game_module.ALIEN_ROWS * game_module.ALIEN_COLUMNS
+
+
+def test_wave_speed_ups_are_capped(game):
+    game.wave = 100
+    assert game.alien_speed == game_module.ALIEN_MAX_SPEED
+    assert game.alien_shot_cooldown == game_module.ALIEN_MIN_SHOT_COOLDOWN
+
+
+def test_new_waves_start_at_the_top(game):
+    start(game)
+    first_wave = alien_positions(game)
+    run_frames(game, 400)  # long enough to step down a few times
+    assert max(y for _, y in alien_positions(game)) > max(y for _, y in first_wave)
+    game.alien_group.empty()
+    game.step(NO_KEYS)
+    assert min(y for _, y in alien_positions(game)) == min(y for _, y in first_wave)

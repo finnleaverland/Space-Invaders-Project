@@ -17,7 +17,8 @@ HOW_TO_PLAY = (
     "Aim: destroy all the enemies",
     f"{game.ALIEN_POINTS} points for every enemy destroyed",
     f"The SPECIAL enemy gives either an extra life or {min(_POINT_REWARDS)}-{max(_POINT_REWARDS)} points",
-    "The game is endless: a new wave arrives when you clear one",
+    "The invaders drop closer each time they reach the edge. Don't let them land!",
+    "The game is endless: each new wave moves and shoots a bit faster",
     "Press P to pause, and ESC to stop playing",
     "The most points wins",
 )
