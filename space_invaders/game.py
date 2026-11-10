@@ -39,7 +39,6 @@ PLAYER_START_POS = (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 70)
 PLAYER_SPEED = 4  # pixels per frame
 PLAYER_LIVES = 5
 PLAYER_SHOT_COOLDOWN = 30  # frames between shots
-PLAYER_BULLET_X_OFFSET = 10  # bullets leave the ship slightly right of centre
 FRAME_COUNTER_LIMIT = 1_000_000  # the shot counter wraps back to 0 after this
 BULLET_SPEED = 4  # pixels per frame, upwards
 
@@ -111,7 +110,7 @@ class Player(pygame.sprite.Sprite):
 
         if pressed_keys[K_SPACE] and self.frame_count % PLAYER_SHOT_COOLDOWN == 0:
             self.game.laser_sound.play()
-            bullet = Bullet(self.game, self.rect.centerx + PLAYER_BULLET_X_OFFSET, self.rect.top)
+            bullet = Bullet(self.game, self.rect.centerx, self.rect.top)
             self.game.bullet_group.add(bullet)
 
         # Keep the player on the screen
