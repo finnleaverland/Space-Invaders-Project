@@ -1,6 +1,9 @@
 # Player accounts (contains password hashes and scores) - never commit
 Clientfile.txt
 
+# Original artwork that can't be redistributed - kept locally only
+source-art/
+
 # Python
 __pycache__/
 *.py[cod]

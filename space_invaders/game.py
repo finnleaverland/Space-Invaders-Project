@@ -253,9 +253,9 @@ class Game:
                        for name in SPRITE_IMAGES}
         self.font = pygame.font.SysFont(FONT_NAME, FONT_SIZE)
         self.big_font = pygame.font.SysFont(FONT_NAME, BIG_FONT_SIZE)
-        self.explosion_sound = pygame.mixer.Sound(sound_path("explosion.wav"))
-        self.player_death_sound = pygame.mixer.Sound(sound_path("explosion2.wav"))
-        self.laser_sound = pygame.mixer.Sound(sound_path("laser.wav"))
+        self.explosion_sound = pygame.mixer.Sound(sound_path("explosion.ogg"))
+        self.player_death_sound = pygame.mixer.Sound(sound_path("player_explosion.ogg"))
+        self.laser_sound = pygame.mixer.Sound(sound_path("laser.ogg"))
 
         self.player_group = pygame.sprite.Group()
         self.bullet_group = pygame.sprite.Group()

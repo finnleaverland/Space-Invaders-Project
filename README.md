@@ -77,6 +77,8 @@ space_invaders/
 assets/
     images/              Sprites and background
     sounds/              Sound effects
+tools/
+    make_explosions.py   Draws the explosion images
 tests/
     test_accounts.py     pytest tests for the account system
 ```
@@ -91,12 +93,18 @@ which stored plain text, are upgraded to hashes automatically the first time the
 
 ## Credits
 
-- Sprites (spaceship, bullets and aliens) and sound effects come from the
-  [Coding With Russ Space Invaders tutorial](https://github.com/russs123/Space_Invaders).
-<!-- TODO: add the source of background.png, mysteryalien.png, explosion1.png and explosion2.png -->
+- Ship, alien, UFO, laser and background graphics:
+  [Space Shooter Remastered](https://kenney.nl/assets/space-shooter-remastered) by
+  [Kenney](https://kenney.nl), released under
+  [CC0](https://creativecommons.org/publicdomain/zero/1.0/)
+- Sound effects: [Sci-fi Sounds](https://kenney.nl/assets/sci-fi-sounds) by
+  [Kenney](https://kenney.nl), released under CC0
+- Explosion images: drawn by [`tools/make_explosions.py`](tools/make_explosions.py) in this
+  project
+- The original game was built while following the
+  [Coding With Russ Space Invaders tutorial](https://github.com/russs123/Space_Invaders)
 
-The images and sounds belong to their creators and are **not** covered by this project's
-license.
+Kenney's assets are public domain. Credit isn't required, but it's given here with thanks.
 
 ## License
 
