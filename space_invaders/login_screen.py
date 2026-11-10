@@ -1,4 +1,4 @@
-"""The login window (tkinter): log in, register, recover or change a password, or delete an account."""
+"""The login window (tkinter): log in, register, reset a password, or delete an account."""
 import tkinter as tk
 
 from . import menu_screen
@@ -33,11 +33,6 @@ def find_client(username):
     clients = ClientList()
     found, index = clients.find(Client(username))
     return clients, clients.clients[index] if found else None
-
-
-def answers_match(given, correct):
-    """Compare security answers, ignoring capital letters and surrounding spaces."""
-    return given.strip().lower() == correct.strip().lower()
 
 
 def new_window(parent, title, size):
@@ -92,8 +87,7 @@ class LoginScreen:
         add_spacer(self.root)
         tk.Button(self.root, text="Login", command=self.open_login).pack()
         tk.Button(self.root, text="Register", command=self.open_register).pack()
-        tk.Button(self.root, text="Recover password", command=self.open_recover_password).pack()
-        tk.Button(self.root, text="Change password", command=self.open_change_password).pack()
+        tk.Button(self.root, text="Reset password", command=self.open_reset_password).pack()
         tk.Button(self.root, text="Delete user", command=self.open_delete_user).pack()
 
     def run(self):
@@ -134,7 +128,7 @@ class LoginScreen:
                 if existing is not None:
                     show_message(message, "That username is already taken")
                     return
-                new_client = Client(username, password, question, answer)
+                new_client = Client.new(username, password, question, answer)
                 clients.add_client(new_client)  # adds the client to the list and saves it
                 self.open_menu(new_client)
 
@@ -155,7 +149,7 @@ class LoginScreen:
             if client is None:
                 show_message(message, "Incorrect username")
                 clear(username_entry, password_entry)
-            elif password_entry.get() != client.password:
+            elif not client.check_password(password_entry.get()):
                 show_message(message, "Incorrect password")
                 clear(password_entry)
             else:
@@ -167,7 +161,7 @@ class LoginScreen:
         """Ask for a username, then ask that user's security question.
 
         If the answer is right, both windows close and on_correct_answer(client_list, client)
-        is called. Used by both recover password and change password.
+        is called.
         """
         username_window = new_window(self.root, title, SMALL_WINDOW_SIZE)
         tk.Label(username_window, text="Enter details below:").pack()
@@ -192,7 +186,7 @@ class LoginScreen:
             answer_message = add_status_label(question_window)
 
             def check_answer():
-                if answers_match(answer_entry.get(), client.answer):
+                if client.check_answer(answer_entry.get()):
                     question_window.destroy()
                     username_window.destroy()
                     on_correct_answer(clients, client)
@@ -205,24 +199,13 @@ class LoginScreen:
         tk.Button(username_window, text=button_text, width=WIDE_BUTTON_WIDTH, height=1,
                   command=show_question).pack()
 
-    def open_recover_password(self):
-        """Show a user's password once they answer their security question."""
-        self.ask_security_question("Recover password", "Recover password", self.show_password)
-
-    def show_password(self, clients, client):
-        """Open a window showing the user's password."""
-        window = new_window(self.root, "Recover password", SMALL_WINDOW_SIZE)
-        add_spacer(window)
-        tk.Label(window, text="This user's password is:").pack()
-        tk.Label(window, text=client.password).pack()
-
-    def open_change_password(self):
+    def open_reset_password(self):
         """Let a user set a new password once they answer their security question."""
-        self.ask_security_question("Change password", "Change password", self.enter_new_password)
+        self.ask_security_question("Reset password", "Reset password", self.enter_new_password)
 
     def enter_new_password(self, clients, client):
         """Open a window asking for a new password and save it to the client file."""
-        window = new_window(self.root, "Change password", SMALL_WINDOW_SIZE)
+        window = new_window(self.root, "Reset password", SMALL_WINDOW_SIZE)
         password_entry = add_entry(window, "New password", hidden=True)
         message = add_status_label(window)
 
@@ -231,7 +214,7 @@ class LoginScreen:
             if len(new_password) == 0 or "," in new_password:
                 show_message(message, "Enter a password (no commas)")
                 return
-            client.password = new_password
+            client.set_password(new_password)
             clients.save_list()
             show_message(message, "Password changed", SUCCESS_COLOUR)
             clear(password_entry)
@@ -250,7 +233,7 @@ class LoginScreen:
 
         def delete_user():
             clients, client = find_client(username_entry.get().strip())
-            if client is not None and password_entry.get() == client.password:
+            if client is not None and client.check_password(password_entry.get()):
                 clients.delete_client(client)
                 show_message(message, "User deleted", SUCCESS_COLOUR)
             else:

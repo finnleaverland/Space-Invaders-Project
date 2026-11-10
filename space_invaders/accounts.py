@@ -1,17 +1,29 @@
 """Player accounts: the Client record, and the ClientList that stores clients in a CSV file.
 
-Each line of the file is: username, password, security question, security answer,
+Each line of the file is: username, password hash, security question, security answer hash,
 last score, highest score.
+
+Passwords and security answers are never stored as plain text. They are hashed with
+PBKDF2-HMAC-SHA256 using a random salt for every value, and stored as
+"pbkdf2_sha256$<iterations>$<salt hex>$<hash hex>". Files written by older versions of
+the game, which stored plain text, are upgraded automatically the next time they load.
 """
 import csv
+import hashlib
+import hmac
 import os
+import secrets
 
 # The client file lives in the project folder, so it works whatever folder you run from
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLIENT_FILE = os.path.join(PROJECT_ROOT, "Clientfile.txt")
 
-FIELD_COUNT = 6  # username, password, question, answer, score, highest score
+FIELD_COUNT = 6  # username, password hash, question, answer hash, score, highest score
 REQUIRED_FIELDS = 4  # lines without the two score columns are still accepted
+
+HASH_NAME = "pbkdf2_sha256"
+HASH_ITERATIONS = 600_000  # OWASP's recommended minimum for PBKDF2-HMAC-SHA256
+SALT_BYTES = 16
 
 
 def to_int(value):
@@ -22,16 +34,91 @@ def to_int(value):
         return 0
 
 
-class Client:
-    """One player account. Clients are compared and sorted by username."""
+def hash_secret(secret, iterations=None):
+    """Hash a password or security answer with a new random salt.
 
-    def __init__(self, username="", password="", question="", answer="", score=0, highest_score=0):
+    Returns a string holding everything needed to check it later:
+    "pbkdf2_sha256$<iterations>$<salt hex>$<hash hex>".
+    """
+    iterations = iterations or HASH_ITERATIONS
+    salt = secrets.token_bytes(SALT_BYTES)
+    digest = hashlib.pbkdf2_hmac("sha256", secret.encode("utf-8"), salt, iterations)
+    return f"{HASH_NAME}${iterations}${salt.hex()}${digest.hex()}"
+
+
+def is_hashed(value):
+    """Return True if a value from the file is a hash made by hash_secret()."""
+    parts = value.split("$")
+    if len(parts) != 4 or parts[0] != HASH_NAME or not parts[1].isdigit():
+        return False
+    try:
+        bytes.fromhex(parts[2])
+        bytes.fromhex(parts[3])
+    except ValueError:
+        return False
+    return True
+
+
+def verify_secret(secret, stored_hash):
+    """Check a password or answer against a stored hash."""
+    if not is_hashed(stored_hash):
+        return False
+    _, iterations, salt_hex, digest_hex = stored_hash.split("$")
+    digest = hashlib.pbkdf2_hmac("sha256", secret.encode("utf-8"), bytes.fromhex(salt_hex), int(iterations))
+    return hmac.compare_digest(digest.hex(), digest_hex)
+
+
+def normalise_answer(answer):
+    """Security answers ignore capital letters and surrounding spaces."""
+    return answer.strip().lower()
+
+
+class Client:
+    """One player account. Clients are compared and sorted by username.
+
+    Use Client.new() to create an account from a plain password and answer; the
+    constructor itself takes the values exactly as they are stored in the file.
+    """
+
+    def __init__(self, username="", password_hash="", question="", answer_hash="",
+                 score=0, highest_score=0):
         self.username = username
-        self.password = password
+        self.password_hash = password_hash
         self.question = question
-        self.answer = answer
+        self.answer_hash = answer_hash
         self.score = to_int(score)
         self.highest_score = to_int(highest_score)
+
+    @classmethod
+    def new(cls, username, password, question, answer):
+        """Create a new account, hashing the password and security answer."""
+        return cls(username, hash_secret(password), question, hash_secret(normalise_answer(answer)))
+
+    def check_password(self, password):
+        """Return True if the password is correct."""
+        return verify_secret(password, self.password_hash)
+
+    def check_answer(self, answer):
+        """Return True if the security answer is correct (ignoring case and spaces)."""
+        return verify_secret(normalise_answer(answer), self.answer_hash)
+
+    def set_password(self, new_password):
+        """Replace the password (call ClientList.save_list() afterwards to keep it)."""
+        self.password_hash = hash_secret(new_password)
+
+    def upgrade_plain_text(self):
+        """Hash a password or answer loaded as plain text from an old file.
+
+        Returns True if anything changed.
+        """
+        changed = False
+        if not is_hashed(self.password_hash):
+            self.password_hash = hash_secret(self.password_hash)
+            changed = True
+        if not is_hashed(self.answer_hash):
+            self.answer_hash = hash_secret(normalise_answer(self.answer_hash))
+            changed = True
+        return changed
 
     def __eq__(self, other):
         return self.username == other.username
@@ -44,7 +131,7 @@ class Client:
 
     def to_row(self):
         """Return the client's fields as a list of strings, ready to be written to the file."""
-        return [self.username, self.password, self.question, self.answer,
+        return [self.username, self.password_hash, self.question, self.answer_hash,
                 str(self.score), str(self.highest_score)]
 
     def __str__(self):
@@ -70,6 +157,11 @@ class ClientList:
                 fields += ["0"] * (FIELD_COUNT - len(fields))  # missing scores count as 0
                 self.clients.append(Client(*fields[:FIELD_COUNT]))
         self.sort_list()
+
+        # Older versions stored plain text: hash it now and save, so it never stays on disk
+        upgraded = [client.upgrade_plain_text() for client in self.clients]
+        if any(upgraded):
+            self.save_list()
 
     def __len__(self):
         return len(self.clients)
