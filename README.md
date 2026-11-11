@@ -46,8 +46,8 @@ tkinter comes with the python.org installers. On Linux you may need to install i
 (for example `sudo apt install python3-tk`).
 
 ```bash
-git clone https://github.com/<your-username>/<repo-name>.git
-cd <repo-name>
+git clone https://github.com/finnleaverland/Space-Invaders.git
+cd Space-Invaders
 python -m venv .venv
 ```
 
